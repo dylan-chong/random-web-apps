@@ -361,7 +361,6 @@
           <div class="timer" id="timer">0.0s</div>
           <div class="control-buttons">
             <button class="btn btn-primary" id="submit-btn">Submit Answer</button>
-            <button class="btn btn-secondary" id="reset-btn">Reset Selections</button>
             <button class="btn btn-secondary" id="new-position-btn">New Position</button>
           </div>
         </div>
@@ -498,8 +497,8 @@
         const newCol = col + dc;
         if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
           const piece = gameState.board[newRow][newCol];
-          // Same color pieces (not knights) are valid targets
-          if (piece && piece.color === knightColor && piece.type !== 'N') {
+          // Knights can see ALL pieces (any color)
+          if (piece) {
             vision.push({ row: newRow, col: newCol });
           }
         }
@@ -530,7 +529,12 @@
       return arr[Math.floor(Math.random() * arr.length)];
     }
 
-    // Generate random position
+    // Helper to check if square is light or dark
+    function isLightSquare(row, col) {
+      return (row + col) % 2 === 0;
+    }
+
+    // Generate random position with realistic constraints
     function generatePosition() {
       // Clear board
       gameState.board = Array(8).fill(null).map(() => Array(8).fill(null));
@@ -540,31 +544,89 @@
       const numKnights = randomInt(config.knights[0], config.knights[1]);
       const numPieces = randomInt(config.pieces[0], config.pieces[1]);
 
+      // Track piece counts for realism
+      const pieceCounts = {
+        white: { K: 0, Q: 0, R: 0, B: 0, N: 0, P: 0, lightBishop: false, darkBishop: false },
+        black: { K: 0, Q: 0, R: 0, B: 0, N: 0, P: 0, lightBishop: false, darkBishop: false }
+      };
+
       // Place knights (mix of both colors)
       for (let i = 0; i < numKnights; i++) {
-        let row, col;
+        let row, col, color;
+        let attempts = 0;
         do {
           row = randomInt(0, 7);
           col = randomInt(0, 7);
-        } while (gameState.board[row][col]);
+          color = Math.random() < 0.5 ? 'white' : 'black';
+          attempts++;
+          if (attempts > 100) break; // Prevent infinite loop
+        } while (gameState.board[row][col] || pieceCounts[color].N >= 2);
 
-        const color = Math.random() < 0.5 ? 'white' : 'black';
-        gameState.board[row][col] = { type: 'N', color };
-        gameState.knightPositions.push({ row, col, color });
+        if (attempts <= 100) {
+          gameState.board[row][col] = { type: 'N', color };
+          gameState.knightPositions.push({ row, col, color });
+          pieceCounts[color].N++;
+        }
       }
 
-      // Place other pieces
+      // Place other pieces with realistic constraints
       const pieceTypes = ['K', 'Q', 'R', 'B', 'P'];
       for (let i = 0; i < numPieces; i++) {
-        let row, col;
+        let row, col, type, color;
+        let attempts = 0;
+        let validPlacement = false;
+
         do {
           row = randomInt(0, 7);
           col = randomInt(0, 7);
-        } while (gameState.board[row][col]);
+          type = randomElement(pieceTypes);
+          color = Math.random() < 0.5 ? 'white' : 'black';
+          attempts++;
 
-        const type = randomElement(pieceTypes);
-        const color = Math.random() < 0.5 ? 'white' : 'black';
-        gameState.board[row][col] = { type, color };
+          // Check realistic constraints
+          validPlacement = !gameState.board[row][col];
+
+          if (validPlacement) {
+            const counts = pieceCounts[color];
+
+            // Only 1 king per color
+            if (type === 'K' && counts.K >= 1) validPlacement = false;
+
+            // Max 1 queen per color (can be 0)
+            if (type === 'Q' && counts.Q >= 1) validPlacement = false;
+
+            // Max 2 rooks per color
+            if (type === 'R' && counts.R >= 2) validPlacement = false;
+
+            // Max 1 bishop per square color per side
+            if (type === 'B') {
+              const isLight = isLightSquare(row, col);
+              if (isLight && counts.lightBishop) validPlacement = false;
+              if (!isLight && counts.darkBishop) validPlacement = false;
+            }
+
+            // Pawns not on first or last rank
+            if (type === 'P' && (row === 0 || row === 7)) validPlacement = false;
+
+            // Max 8 pawns per color
+            if (type === 'P' && counts.P >= 8) validPlacement = false;
+          }
+
+          if (attempts > 100) break; // Prevent infinite loop
+        } while (!validPlacement);
+
+        if (attempts <= 100 && !gameState.board[row][col]) {
+          gameState.board[row][col] = { type, color };
+          pieceCounts[color][type]++;
+
+          if (type === 'B') {
+            if (isLightSquare(row, col)) {
+              pieceCounts[color].lightBishop = true;
+            } else {
+              pieceCounts[color].darkBishop = true;
+            }
+          }
+        }
       }
 
       // Calculate valid vision
@@ -705,15 +767,6 @@
       // Disable board
       document.querySelectorAll('.square').forEach(sq => sq.classList.add('disabled'));
       document.getElementById('submit-btn').disabled = true;
-      document.getElementById('reset-btn').disabled = true;
-    }
-
-    // Reset selections
-    function resetSelections() {
-      gameState.selectedSquares.clear();
-      document.querySelectorAll('.square').forEach(sq => {
-        sq.classList.remove('selected');
-      });
     }
 
     // New position
@@ -728,7 +781,6 @@
 
       document.getElementById('feedback').classList.remove('show');
       document.getElementById('submit-btn').disabled = false;
-      document.getElementById('reset-btn').disabled = false;
       document.getElementById('timer').textContent = '0.0s';
     }
 
@@ -769,7 +821,6 @@
 
     // Button handlers
     document.getElementById('submit-btn').addEventListener('click', handleSubmit);
-    document.getElementById('reset-btn').addEventListener('click', resetSelections);
     document.getElementById('new-position-btn').addEventListener('click', newPosition);
 
     // Initialize
