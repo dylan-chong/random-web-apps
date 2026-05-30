@@ -930,9 +930,12 @@
         return;
       }
 
-      const padding = 40;
-      const graphWidth = canvas.width - padding * 2;
-      const graphHeight = canvas.height - padding * 2;
+      const paddingLeft = 60;  // More space for Y-axis labels
+      const paddingRight = 40;
+      const paddingTop = 40;
+      const paddingBottom = 40;
+      const graphWidth = canvas.width - paddingLeft - paddingRight;
+      const graphHeight = canvas.height - paddingTop - paddingBottom;
 
       // Extract data
       const times = history.map(h => h.time);
@@ -945,9 +948,9 @@
       ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-highlight');
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(padding, padding);
-      ctx.lineTo(padding, canvas.height - padding);
-      ctx.lineTo(canvas.width - padding, canvas.height - padding);
+      ctx.moveTo(paddingLeft, paddingTop);
+      ctx.lineTo(paddingLeft, canvas.height - paddingBottom);
+      ctx.lineTo(canvas.width - paddingRight, canvas.height - paddingBottom);
       ctx.stroke();
 
       // Draw grid lines
@@ -955,10 +958,10 @@
       ctx.lineWidth = 1;
       ctx.setLineDash([5, 5]);
       for (let i = 0; i <= 4; i++) {
-        const y = padding + (graphHeight / 4) * i;
+        const y = paddingTop + (graphHeight / 4) * i;
         ctx.beginPath();
-        ctx.moveTo(padding, y);
-        ctx.lineTo(canvas.width - padding, y);
+        ctx.moveTo(paddingLeft, y);
+        ctx.lineTo(canvas.width - paddingRight, y);
         ctx.stroke();
       }
       ctx.setLineDash([]);
@@ -968,8 +971,8 @@
       ctx.lineWidth = 3;
       ctx.beginPath();
       history.forEach((point, index) => {
-        const x = padding + (graphWidth / (history.length - 1 || 1)) * index;
-        const y = canvas.height - padding - (point.time / maxTime) * graphHeight;
+        const x = paddingLeft + (graphWidth / (history.length - 1 || 1)) * index;
+        const y = canvas.height - paddingBottom - (point.time / maxTime) * graphHeight;
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -981,8 +984,8 @@
       // Draw dots at each data point
       ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent');
       history.forEach((point, index) => {
-        const x = padding + (graphWidth / (history.length - 1 || 1)) * index;
-        const y = canvas.height - padding - (point.time / maxTime) * graphHeight;
+        const x = paddingLeft + (graphWidth / (history.length - 1 || 1)) * index;
+        const y = canvas.height - paddingBottom - (point.time / maxTime) * graphHeight;
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, 2 * Math.PI);
         ctx.fill();
@@ -994,8 +997,8 @@
       ctx.textAlign = 'right';
       for (let i = 0; i <= 4; i++) {
         const value = (maxTime / 4) * (4 - i); // Bottom to top: 0 at bottom, maxTime at top
-        const y = padding + (graphHeight / 4) * i;
-        ctx.fillText(value.toFixed(1) + 's', padding - 10, y + 4);
+        const y = paddingTop + (graphHeight / 4) * i;
+        ctx.fillText(value.toFixed(1) + 's', paddingLeft - 10, y + 4);
       }
 
       // Draw X-axis label
