@@ -394,8 +394,8 @@
     </header>
 
     <div class="difficulty-selector">
-      <button class="difficulty-btn" data-difficulty="easy">Easy</button>
-      <button class="difficulty-btn active" data-difficulty="medium">Medium</button>
+      <button class="difficulty-btn active" data-difficulty="easy">Easy</button>
+      <button class="difficulty-btn" data-difficulty="medium">Medium</button>
       <button class="difficulty-btn" data-difficulty="hard">Hard</button>
     </div>
 
@@ -517,7 +517,7 @@
     // Game state
     let gameState = {
       board: Array(8).fill(null).map(() => Array(8).fill(null)),
-      difficulty: 'medium',
+      difficulty: 'easy',
       selectedSquares: new Set(),
       validVision: new Set(),
       knightPositions: [],
