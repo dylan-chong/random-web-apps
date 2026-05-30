@@ -919,7 +919,7 @@
       // Filter to only 100% accurate submissions for current difficulty
       const history = allHistory.filter(h =>
         h.accuracy === 100 &&
-        (h.difficulty === gameState.difficulty || !h.difficulty) // Include old entries without difficulty
+        h.difficulty === gameState.difficulty
       );
 
       // Update title to show difficulty
