@@ -465,8 +465,8 @@
 
     <div class="container" style="margin-top: 3rem;">
       <div class="performance-graph-panel">
-        <h2 class="graph-title">Perfect Solve Speed Over Time</h2>
-        <p style="text-align: center; color: var(--fg-dim); margin-bottom: 1rem; font-size: 0.9rem;">Only 100% accurate solves are tracked</p>
+        <h2 class="graph-title" id="graph-title">Perfect Solve Speed Over Time</h2>
+        <p style="text-align: center; color: var(--fg-dim); margin-bottom: 1rem; font-size: 0.9rem;" id="graph-subtitle">Only 100% accurate solves are tracked</p>
         <canvas id="performance-chart" width="800" height="300"></canvas>
         <div class="graph-legend">
           <div class="legend-item">
@@ -570,7 +570,8 @@
       history.push({
         timestamp: Date.now(),
         accuracy: accuracy,
-        time: timeInSeconds
+        time: timeInSeconds,
+        difficulty: gameState.difficulty
       });
 
       // Keep only last MAX_PERFORMANCE_HISTORY entries
@@ -915,8 +916,15 @@
       const ctx = canvas.getContext('2d');
       const allHistory = loadPerformanceHistory();
 
-      // Filter to only 100% accurate submissions
-      const history = allHistory.filter(h => h.accuracy === 100);
+      // Filter to only 100% accurate submissions for current difficulty
+      const history = allHistory.filter(h =>
+        h.accuracy === 100 &&
+        (h.difficulty === gameState.difficulty || !h.difficulty) // Include old entries without difficulty
+      );
+
+      // Update title to show difficulty
+      const difficultyCapitalized = gameState.difficulty.charAt(0).toUpperCase() + gameState.difficulty.slice(1);
+      document.getElementById('graph-title').textContent = `Perfect Solve Speed Over Time (${difficultyCapitalized})`;
 
       // Clear canvas
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1013,6 +1021,7 @@
         btn.classList.add('active');
         gameState.difficulty = btn.dataset.difficulty;
         newPosition();
+        renderPerformanceGraph(); // Update graph for new difficulty
       });
     });
 
