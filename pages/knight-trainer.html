@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Knight Pattern Recognition</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/tokyo-night-moon.css">
+  <style>
+    body {
+      padding: 1rem;
+      touch-action: manipulation;
+    }
+
+    .container {
+      max-width: 800px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: clamp(1.8rem, 5vw, 2.5rem);
+      color: var(--accent);
+      text-shadow: 2px 2px 4px var(--shadow), 0 0 30px rgba(130, 170, 255, 0.3);
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--fg-dim);
+      font-size: 0.9rem;
+    }
+
+    .difficulty-selector {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .difficulty-btn {
+      padding: 0.75rem 1.5rem;
+      background: var(--bg-surface);
+      border: 2px solid var(--bg-highlight);
+      border-radius: 8px;
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .difficulty-btn:hover {
+      border-color: var(--accent);
+      color: var(--fg);
+    }
+
+    .difficulty-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+      box-shadow: 0 4px 15px rgba(130, 170, 255, 0.3);
+    }
+
+    .game-container {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .board-wrapper {
+      flex: 1;
+      min-width: 0;
+      max-width: min(600px, 100%);
+    }
+
+    .chess-board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0;
+      width: 100%;
+      aspect-ratio: 1;
+      border: 3px solid var(--bg-highlight);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px var(--shadow);
+    }
+
+    .square {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1.5rem, 4vw, 2.5rem);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .square.light {
+      background: var(--bg-surface);
+    }
+
+    .square.dark {
+      background: var(--bg-highlight);
+    }
+
+    .square.selected {
+      box-shadow: inset 0 0 0 3px var(--accent);
+      background: rgba(130, 170, 255, 0.2);
+    }
+
+    .square.correct {
+      box-shadow: inset 0 0 0 4px var(--positive);
+      background: rgba(195, 232, 141, 0.2);
+    }
+
+    .square.incorrect {
+      box-shadow: inset 0 0 0 4px var(--negative);
+      background: rgba(255, 117, 127, 0.2);
+    }
+
+    .square.missed {
+      box-shadow: inset 0 0 0 4px var(--warning);
+      background: rgba(255, 199, 119, 0.2);
+    }
+
+    .square:not(.disabled):hover {
+      opacity: 0.8;
+    }
+
+    .square.disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+
+    .square img {
+      width: 80%;
+      height: 80%;
+      object-fit: contain;
+      pointer-events: none;
+    }
+
+    .controls {
+      flex: 1;
+      min-width: min(100%, 300px);
+      max-width: 400px;
+    }
+
+    .control-panel {
+      background: rgba(34, 36, 54, 0.8);
+      border: 2px solid var(--bg-highlight);
+      border-radius: 12px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+      margin-bottom: 1.5rem;
+    }
+
+    .control-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .btn {
+      padding: 0.875rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-dim) 100%);
+      color: var(--bg);
+      box-shadow: 0 4px 15px rgba(130, 170, 255, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(130, 170, 255, 0.4);
+    }
+
+    .btn-secondary {
+      background: var(--bg-highlight);
+      color: var(--fg);
+      border: 2px solid var(--bg-highlight);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+      background: rgba(130, 170, 255, 0.1);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .stats-panel {
+      background: rgba(34, 36, 54, 0.8);
+      border: 2px solid var(--bg-highlight);
+      border-radius: 12px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .stats-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .stats-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .stats-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--accent-light);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--bg-highlight);
+      font-size: 0.9rem;
+    }
+
+    .stat-row:last-child {
+      border-bottom: none;
+    }
+
+    .stat-label {
+      color: var(--fg-dim);
+    }
+
+    .stat-value {
+      color: var(--fg);
+      font-weight: 600;
+    }
+
+    .stat-value.highlight {
+      color: var(--accent);
+    }
+
+    .feedback {
+      background: rgba(34, 36, 54, 0.8);
+      border: 2px solid var(--bg-highlight);
+      border-radius: 12px;
+      padding: 1.5rem;
+      backdrop-filter: blur(10px);
+      margin-top: 1.5rem;
+      display: none;
+    }
+
+    .feedback.show {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .feedback-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      color: var(--accent-light);
+    }
+
+    .feedback-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .feedback-stat {
+      text-align: center;
+      padding: 1rem;
+      background: var(--bg);
+      border-radius: 8px;
+    }
+
+    .feedback-stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .feedback-stat-label {
+      font-size: 0.75rem;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .timer {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .game-container {
+        flex-direction: column;
+      }
+
+      .board-wrapper,
+      .controls {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="../index.html" class="back-link">
+      <span>←</span>
+      <span>Back to Apps</span>
+    </a>
+
+    <header>
+      <h1>♞ Knight Vision Trainer ♘</h1>
+      <p class="subtitle">Click all the pieces that any knight can see</p>
+    </header>
+
+    <div class="difficulty-selector">
+      <button class="difficulty-btn" data-difficulty="easy">Easy</button>
+      <button class="difficulty-btn active" data-difficulty="medium">Medium</button>
+      <button class="difficulty-btn" data-difficulty="hard">Hard</button>
+    </div>
+
+    <div class="game-container">
+      <div class="board-wrapper">
+        <div class="chess-board" id="chess-board"></div>
+      </div>
+
+      <div class="controls">
+        <div class="control-panel">
+          <div class="timer" id="timer">0.0s</div>
+          <div class="control-buttons">
+            <button class="btn btn-primary" id="submit-btn">Submit Answer</button>
+            <button class="btn btn-secondary" id="reset-btn">Reset Selections</button>
+            <button class="btn btn-secondary" id="new-position-btn">New Position</button>
+          </div>
+        </div>
+
+        <div class="stats-panel">
+          <div class="stats-section">
+            <div class="stats-title">Current Session</div>
+            <div class="stat-row">
+              <span class="stat-label">Accuracy</span>
+              <span class="stat-value highlight" id="session-accuracy">—</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Correct / Total</span>
+              <span class="stat-value" id="session-ratio">0 / 0</span>
+            </div>
+          </div>
+
+          <div class="stats-section">
+            <div class="stats-title">All Time</div>
+            <div class="stat-row">
+              <span class="stat-label">Positions</span>
+              <span class="stat-value" id="total-positions">0</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Overall Accuracy</span>
+              <span class="stat-value" id="total-accuracy">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="feedback" id="feedback">
+          <div class="feedback-title">Results</div>
+          <div class="feedback-stats">
+            <div class="feedback-stat">
+              <div class="feedback-stat-value" style="color: var(--positive)" id="correct-count">0</div>
+              <div class="feedback-stat-label">Correct</div>
+            </div>
+            <div class="feedback-stat">
+              <div class="feedback-stat-value" style="color: var(--negative)" id="incorrect-count">0</div>
+              <div class="feedback-stat-label">Incorrect</div>
+            </div>
+            <div class="feedback-stat">
+              <div class="feedback-stat-value" style="color: var(--warning)" id="missed-count">0</div>
+              <div class="feedback-stat-label">Missed</div>
+            </div>
+            <div class="feedback-stat">
+              <div class="feedback-stat-value" style="color: var(--accent)" id="time-taken">0.0s</div>
+              <div class="feedback-stat-label">Time</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Constants
+    const KNIGHT_MOVES = [
+      [-2, -1], [-2, 1], [-1, -2], [-1, 2],
+      [1, -2], [1, 2], [2, -1], [2, 1]
+    ];
+
+    const PIECE_SVGS = {
+      white: {
+        K: 'https://lichess1.org/assets/piece/cburnett/wK.svg',
+        Q: 'https://lichess1.org/assets/piece/cburnett/wQ.svg',
+        R: 'https://lichess1.org/assets/piece/cburnett/wR.svg',
+        B: 'https://lichess1.org/assets/piece/cburnett/wB.svg',
+        N: 'https://lichess1.org/assets/piece/cburnett/wN.svg',
+        P: 'https://lichess1.org/assets/piece/cburnett/wP.svg',
+      },
+      black: {
+        K: 'https://lichess1.org/assets/piece/cburnett/bK.svg',
+        Q: 'https://lichess1.org/assets/piece/cburnett/bQ.svg',
+        R: 'https://lichess1.org/assets/piece/cburnett/bR.svg',
+        B: 'https://lichess1.org/assets/piece/cburnett/bB.svg',
+        N: 'https://lichess1.org/assets/piece/cburnett/bN.svg',
+        P: 'https://lichess1.org/assets/piece/cburnett/bP.svg',
+      }
+    };
+
+    const DIFFICULTY_CONFIG = {
+      easy: { knights: [1, 2], pieces: [4, 6] },
+      medium: { knights: [2, 3], pieces: [8, 12] },
+      hard: { knights: [3, 4], pieces: [12, 16] }
+    };
+
+    const STORAGE_KEY = 'knight_trainer_stats';
+
+    // Game state
+    let gameState = {
+      board: Array(8).fill(null).map(() => Array(8).fill(null)),
+      difficulty: 'medium',
+      selectedSquares: new Set(),
+      validVision: new Set(),
+      knightPositions: [],
+      startTime: null,
+      timerInterval: null,
+      submitted: false,
+      sessionStats: { correct: 0, total: 0 },
+      historicalStats: loadStats()
+    };
+
+    // Load stats from LocalStorage
+    function loadStats() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      return {
+        totalPositions: 0,
+        totalCorrect: 0,
+        totalClicks: 0,
+        totalTime: 0,
+        byDifficulty: {
+          easy: { positions: 0, correct: 0, total: 0 },
+          medium: { positions: 0, correct: 0, total: 0 },
+          hard: { positions: 0, correct: 0, total: 0 }
+        }
+      };
+    }
+
+    // Save stats to LocalStorage
+    function saveStats() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState.historicalStats));
+      updateStatsDisplay();
+    }
+
+    // Get knight vision for a single knight
+    function getKnightVision(row, col, knightColor) {
+      const vision = [];
+      for (const [dr, dc] of KNIGHT_MOVES) {
+        const newRow = row + dr;
+        const newCol = col + dc;
+        if (newRow >= 0 && newRow < 8 && newCol >= 0 && newCol < 8) {
+          const piece = gameState.board[newRow][newCol];
+          // Same color pieces (not knights) are valid targets
+          if (piece && piece.color === knightColor && piece.type !== 'N') {
+            vision.push({ row: newRow, col: newCol });
+          }
+        }
+      }
+      return vision;
+    }
+
+    // Get all valid vision for all knights
+    function getAllValidVision() {
+      const vision = new Set();
+      // Check all knights (both colors)
+      for (const { row, col, color } of gameState.knightPositions) {
+        const knightVision = getKnightVision(row, col, color);
+        knightVision.forEach(({ row, col }) => {
+          vision.add(`${row},${col}`);
+        });
+      }
+      return vision;
+    }
+
+    // Random integer helper
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Random array element
+    function randomElement(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    // Generate random position
+    function generatePosition() {
+      // Clear board
+      gameState.board = Array(8).fill(null).map(() => Array(8).fill(null));
+      gameState.knightPositions = [];
+
+      const config = DIFFICULTY_CONFIG[gameState.difficulty];
+      const numKnights = randomInt(config.knights[0], config.knights[1]);
+      const numPieces = randomInt(config.pieces[0], config.pieces[1]);
+
+      // Place knights (mix of both colors)
+      for (let i = 0; i < numKnights; i++) {
+        let row, col;
+        do {
+          row = randomInt(0, 7);
+          col = randomInt(0, 7);
+        } while (gameState.board[row][col]);
+
+        const color = Math.random() < 0.5 ? 'white' : 'black';
+        gameState.board[row][col] = { type: 'N', color };
+        gameState.knightPositions.push({ row, col, color });
+      }
+
+      // Place other pieces
+      const pieceTypes = ['K', 'Q', 'R', 'B', 'P'];
+      for (let i = 0; i < numPieces; i++) {
+        let row, col;
+        do {
+          row = randomInt(0, 7);
+          col = randomInt(0, 7);
+        } while (gameState.board[row][col]);
+
+        const type = randomElement(pieceTypes);
+        const color = Math.random() < 0.5 ? 'white' : 'black';
+        gameState.board[row][col] = { type, color };
+      }
+
+      // Calculate valid vision
+      gameState.validVision = getAllValidVision();
+
+      // Ensure at least 2 valid vision targets exist, otherwise regenerate
+      if (gameState.validVision.size < 2) {
+        return generatePosition();
+      }
+    }
+
+    // Render board
+    function renderBoard() {
+      const boardEl = document.getElementById('chess-board');
+      boardEl.innerHTML = '';
+
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement('div');
+          const isLight = (row + col) % 2 === 0;
+          square.className = `square ${isLight ? 'light' : 'dark'}`;
+          square.dataset.row = row;
+          square.dataset.col = col;
+
+          const piece = gameState.board[row][col];
+          if (piece) {
+            const img = document.createElement('img');
+            img.src = PIECE_SVGS[piece.color][piece.type];
+            img.alt = `${piece.color} ${piece.type}`;
+            square.appendChild(img);
+          }
+
+          square.addEventListener('click', () => handleSquareClick(row, col));
+          boardEl.appendChild(square);
+        }
+      }
+    }
+
+    // Handle square click
+    function handleSquareClick(row, col) {
+      if (gameState.submitted) return;
+
+      const piece = gameState.board[row][col];
+      if (!piece) return; // Only ignore empty squares
+
+      const key = `${row},${col}`;
+      const square = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+
+      if (gameState.selectedSquares.has(key)) {
+        gameState.selectedSquares.delete(key);
+        square.classList.remove('selected');
+      } else {
+        gameState.selectedSquares.add(key);
+        square.classList.add('selected');
+      }
+    }
+
+    // Start timer
+    function startTimer() {
+      gameState.startTime = Date.now();
+      gameState.timerInterval = setInterval(() => {
+        const elapsed = (Date.now() - gameState.startTime) / 1000;
+        document.getElementById('timer').textContent = elapsed.toFixed(1) + 's';
+      }, 100);
+    }
+
+    // Stop timer
+    function stopTimer() {
+      if (gameState.timerInterval) {
+        clearInterval(gameState.timerInterval);
+        gameState.timerInterval = null;
+      }
+    }
+
+    // Handle submit
+    function handleSubmit() {
+      if (gameState.submitted) return;
+
+      stopTimer();
+      gameState.submitted = true;
+
+      const timeElapsed = (Date.now() - gameState.startTime) / 1000;
+
+      // Calculate results
+      const selected = [...gameState.selectedSquares];
+      const valid = [...gameState.validVision];
+
+      const correct = selected.filter(s => gameState.validVision.has(s));
+      const incorrect = selected.filter(s => !gameState.validVision.has(s));
+      const missed = valid.filter(s => !gameState.selectedSquares.has(s));
+
+      // Update session stats
+      gameState.sessionStats.correct += correct.length;
+      gameState.sessionStats.total += selected.length;
+
+      // Update historical stats
+      const stats = gameState.historicalStats;
+      stats.totalPositions++;
+      stats.totalCorrect += correct.length;
+      stats.totalClicks += selected.length;
+      stats.totalTime += timeElapsed;
+
+      const diffStats = stats.byDifficulty[gameState.difficulty];
+      diffStats.positions++;
+      diffStats.correct += correct.length;
+      diffStats.total += selected.length;
+
+      saveStats();
+
+      // Visual feedback
+      correct.forEach(key => {
+        const [row, col] = key.split(',').map(Number);
+        const square = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        square.classList.remove('selected');
+        square.classList.add('correct');
+      });
+
+      incorrect.forEach(key => {
+        const [row, col] = key.split(',').map(Number);
+        const square = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        square.classList.remove('selected');
+        square.classList.add('incorrect');
+      });
+
+      missed.forEach(key => {
+        const [row, col] = key.split(',').map(Number);
+        const square = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
+        square.classList.add('missed');
+      });
+
+      // Show feedback
+      document.getElementById('correct-count').textContent = correct.length;
+      document.getElementById('incorrect-count').textContent = incorrect.length;
+      document.getElementById('missed-count').textContent = missed.length;
+      document.getElementById('time-taken').textContent = timeElapsed.toFixed(1) + 's';
+      document.getElementById('feedback').classList.add('show');
+
+      // Disable board
+      document.querySelectorAll('.square').forEach(sq => sq.classList.add('disabled'));
+      document.getElementById('submit-btn').disabled = true;
+      document.getElementById('reset-btn').disabled = true;
+    }
+
+    // Reset selections
+    function resetSelections() {
+      gameState.selectedSquares.clear();
+      document.querySelectorAll('.square').forEach(sq => {
+        sq.classList.remove('selected');
+      });
+    }
+
+    // New position
+    function newPosition() {
+      stopTimer();
+      gameState.selectedSquares.clear();
+      gameState.submitted = false;
+
+      generatePosition();
+      renderBoard();
+      startTimer();
+
+      document.getElementById('feedback').classList.remove('show');
+      document.getElementById('submit-btn').disabled = false;
+      document.getElementById('reset-btn').disabled = false;
+      document.getElementById('timer').textContent = '0.0s';
+    }
+
+    // Update stats display
+    function updateStatsDisplay() {
+      const { sessionStats, historicalStats } = gameState;
+
+      // Session stats
+      if (sessionStats.total > 0) {
+        const accuracy = (sessionStats.correct / sessionStats.total * 100).toFixed(1);
+        document.getElementById('session-accuracy').textContent = accuracy + '%';
+        document.getElementById('session-ratio').textContent =
+          `${sessionStats.correct} / ${sessionStats.total}`;
+      } else {
+        document.getElementById('session-accuracy').textContent = '—';
+        document.getElementById('session-ratio').textContent = '0 / 0';
+      }
+
+      // Historical stats
+      document.getElementById('total-positions').textContent = historicalStats.totalPositions;
+      if (historicalStats.totalClicks > 0) {
+        const accuracy = (historicalStats.totalCorrect / historicalStats.totalClicks * 100).toFixed(1);
+        document.getElementById('total-accuracy').textContent = accuracy + '%';
+      } else {
+        document.getElementById('total-accuracy').textContent = '—';
+      }
+    }
+
+    // Difficulty selector
+    document.querySelectorAll('.difficulty-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.difficulty-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        gameState.difficulty = btn.dataset.difficulty;
+        newPosition();
+      });
+    });
+
+    // Button handlers
+    document.getElementById('submit-btn').addEventListener('click', handleSubmit);
+    document.getElementById('reset-btn').addEventListener('click', resetSelections);
+    document.getElementById('new-position-btn').addEventListener('click', newPosition);
+
+    // Initialize
+    newPosition();
+    updateStatsDisplay();
+  </script>
+</body>
+</html>

@@ -21,12 +21,18 @@ Track player buy-ins and cash-outs for home poker games. Automatically calculate
 
 [Try it →](pages/poker-tracker.html)
 
-### Coming Soon
-- Todo Manager 📝
-- Pomodoro Timer ⏱️
-- Color Palette Generator 🎨
-- Expense Splitter 💰
-- Chart Maker 📊
+### Knight Vision Trainer ♞
+Practice recognizing which pieces are defended by knights. Click all pieces that any knight can see, improving your defensive awareness and tactical vision.
+
+**Features:**
+- Three difficulty levels (Easy, Medium, Hard)
+- SVG chess pieces from Lichess
+- Random position generation
+- Session and historical performance tracking
+- Mobile-friendly touch interface
+- Timer for each position
+
+[Try it →](pages/knight-trainer.html)
 
 ## 🎨 Design
 
