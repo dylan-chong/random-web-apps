@@ -246,22 +246,6 @@
       margin-bottom: 1rem;
     }
 
-    .cash-out-input {
-      width: 100px;
-      padding: 0.5rem;
-      background: var(--bg);
-      border: 1px solid var(--bg-highlight);
-      border-radius: 4px;
-      color: var(--fg);
-      font-family: inherit;
-      font-size: 0.9rem;
-    }
-
-    .cash-out-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
     .btn-small {
       padding: 0.4rem 0.8rem;
       background: var(--danger);
@@ -272,6 +256,7 @@
       font-size: 0.75rem;
       cursor: pointer;
       margin-left: 0.5rem;
+      margin-bottom: 0.3rem;
       transition: transform 0.2s ease;
     }
 
@@ -281,6 +266,11 @@
 
     .btn-save {
       background: var(--teal);
+      color: var(--bg);
+    }
+
+    .btn-cancel {
+      background: var(--fg-dim);
       color: var(--bg);
     }
 
@@ -344,6 +334,103 @@
       background: var(--danger);
       color: var(--fg);
     }
+
+    .type-badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .type-buy-in-cash { background: rgba(158, 206, 106, 0.15); color: var(--positive); }
+    .type-buy-in-iou { background: rgba(224, 175, 104, 0.15); color: #e0af68; }
+    .type-cash-out-cash { background: rgba(130, 170, 255, 0.15); color: var(--accent); }
+    .type-cash-out-iou { background: rgba(192, 153, 255, 0.15); color: var(--secondary); }
+    .type-edit { background: rgba(128, 128, 128, 0.15); color: var(--fg-dim); }
+
+    .edit-row td {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+      color: var(--fg-dim);
+      font-size: 0.85rem;
+    }
+
+    .edit-row:hover {
+      background: none;
+    }
+
+    .edit-input {
+      padding: 0.4rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 4px;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 0.85rem;
+      width: 80px;
+    }
+
+    .edit-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .edit-select {
+      padding: 0.4rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 4px;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 0.75rem;
+    }
+
+    .edit-notes {
+      width: 120px;
+    }
+
+    .notes-text {
+      font-size: 0.85rem;
+      color: var(--fg-dim);
+      font-style: italic;
+    }
+
+    .type-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .type-selector-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.75rem 1rem;
+      background: var(--bg);
+      border: 2px solid var(--bg-highlight);
+      border-radius: 8px;
+      color: var(--fg-dim);
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .type-selector-btn:hover {
+      border-color: var(--accent);
+      color: var(--fg);
+    }
+
+    .type-selector-btn.active {
+      border-color: var(--accent);
+      background: rgba(130, 170, 255, 0.1);
+      color: var(--accent);
+      font-weight: 600;
+    }
   </style>
 </head>
 <body>
@@ -359,84 +446,72 @@
     </header>
 
     <div class="tabs">
-      <button class="tab-btn active" data-tab="buy-in">Buy In</button>
-      <button class="tab-btn" data-tab="buy-in-list">Buy-In List</button>
-      <button class="tab-btn" data-tab="cash-out">Cash Out</button>
+      <button class="tab-btn active" data-tab="add-event">Add Event</button>
+      <button class="tab-btn" data-tab="event-list">Event List</button>
       <button class="tab-btn" data-tab="results">Results</button>
     </div>
 
-    <div id="buy-in" class="tab-content active">
-      <form id="buy-in-form">
+    <div id="add-event" class="tab-content active">
+      <form id="event-form">
         <div class="form-group">
           <label for="username">Player Name</label>
           <input type="text" id="username" placeholder="Enter player name" required autocomplete="off">
           <div id="username-autocomplete" class="autocomplete-btns"></div>
         </div>
         <div class="form-group">
-          <label for="amount">Cash Amount ($)</label>
-          <input type="number" id="amount" placeholder="Enter cash amount" min="0" step="0.01">
+          <label>Event Type</label>
+          <div class="type-selector" id="event-type-selector">
+            <button type="button" class="type-selector-btn active" data-type="buy-in-cash">Buy-In Cash</button>
+            <button type="button" class="type-selector-btn" data-type="buy-in-iou">Buy-In IOU<br><span style="font-size:0.65rem; opacity:0.7;">player owes host</span></button>
+            <button type="button" class="type-selector-btn" data-type="cash-out-cash">Cash-Out Cash</button>
+            <button type="button" class="type-selector-btn" data-type="cash-out-iou">Cash-Out IOU<br><span style="font-size:0.65rem; opacity:0.7;">host owes player</span></button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="amount">Amount ($)</label>
+          <input type="number" id="amount" placeholder="Enter amount" min="0.01" step="0.01" required>
           <div id="amount-autocomplete" class="autocomplete-btns"></div>
         </div>
         <div class="form-group">
-          <label for="iou-amount">IOU Amount ($) <span style="font-size:0.7rem; color:var(--fg-dim); text-transform:none; letter-spacing:normal;">— player owes host</span></label>
-          <input type="number" id="iou-amount" placeholder="Enter IOU amount" min="0" step="0.01">
+          <label for="notes">Notes <span style="font-size:0.7rem; color:var(--fg-dim); text-transform:none; letter-spacing:normal;">(optional)</span></label>
+          <input type="text" id="notes" placeholder="Optional notes" autocomplete="off">
         </div>
-        <button type="submit" class="btn-primary">Add Buy-In</button>
+        <button type="submit" class="btn-primary">Add Event</button>
       </form>
     </div>
 
-    <div id="buy-in-list" class="tab-content">
+    <div id="event-list" class="tab-content">
       <div class="summary-cards">
         <div class="summary-card">
           <div class="summary-card-label">Total Players</div>
           <div class="summary-card-value" id="total-players">0</div>
         </div>
         <div class="summary-card">
-          <div class="summary-card-label">Total Buy-Ins</div>
-          <div class="summary-card-value" id="total-buy-ins">$0</div>
+          <div class="summary-card-label">Total Events</div>
+          <div class="summary-card-value" id="total-events">0</div>
         </div>
       </div>
       <div class="table-container">
         <table>
           <thead>
             <tr>
+              <th>No.</th>
               <th>Player</th>
-              <th>Cash</th>
-              <th>IOU</th>
-              <th>Total</th>
+              <th>Type</th>
+              <th>Amount</th>
+              <th>Notes</th>
               <th>Time</th>
               <th>Action</th>
             </tr>
           </thead>
-          <tbody id="buy-in-table-body"></tbody>
+          <tbody id="event-table-body"></tbody>
         </table>
       </div>
-      <div id="buy-in-empty" class="empty-state">
+      <div id="event-list-empty" class="empty-state">
         <div class="empty-state-icon">🎰</div>
-        <p>No buy-ins recorded yet</p>
+        <p>No events recorded yet</p>
       </div>
-      <button class="delete-all-btn" id="clear-buy-ins">Clear All Buy-Ins</button>
-    </div>
-
-    <div id="cash-out" class="tab-content">
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Player</th>
-              <th>Total Buy-In</th>
-              <th>Cash Out ($)</th>
-              <th>IOU Out ($) <span style="font-size:0.65rem; font-weight:normal; text-transform:none; letter-spacing:normal;">host owes player</span></th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="cash-out-table-body"></tbody>
-        </table>
-      </div>
-      <div id="cash-out-empty" class="empty-state">
-        <div class="empty-state-icon">💰</div>
-        <p>No players to cash out</p>
-      </div>
+      <button class="delete-all-btn" id="clear-events">Clear All Events</button>
     </div>
 
     <div id="results" class="tab-content">
@@ -446,8 +521,9 @@
           <div class="summary-card-value" id="total-cash-out">$0</div>
         </div>
         <div class="summary-card">
-          <div class="summary-card-label">Difference</div>
+          <div class="summary-card-label">Discrepancy</div>
           <div class="summary-card-value" id="cash-difference">$0</div>
+          <div style="font-size:0.7rem; color:var(--fg-dim); margin-top:0.25rem;" id="discrepancy-subtitle"></div>
         </div>
         <div class="summary-card">
           <div class="summary-card-label">Biggest Winner</div>
@@ -464,7 +540,7 @@
             <tr>
               <th>Player</th>
               <th>Total Buy-In</th>
-              <th>Cash Out</th>
+              <th>Total Cash-Out</th>
               <th>Net</th>
             </tr>
           </thead>
@@ -473,7 +549,7 @@
       </div>
       <div id="results-empty" class="empty-state">
         <div class="empty-state-icon">📊</div>
-        <p>Complete cash-outs to see results</p>
+        <p>Add some events to see results</p>
       </div>
       <div id="iou-summary" style="margin-top:2rem; display:none;">
         <h3 style="color:var(--accent-light); font-size:1rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Outstanding IOUs</h3>
@@ -482,8 +558,8 @@
             <thead>
               <tr>
                 <th>Player</th>
-                <th>Owes Host (Buy-In IOUs)</th>
-                <th>Host Owes (Cash-Out IOUs)</th>
+                <th>Owes Host</th>
+                <th>Host Owes</th>
                 <th>Net IOU</th>
               </tr>
             </thead>
@@ -496,15 +572,35 @@
 
   <script>
     const STORAGE_KEYS = {
-      BUY_INS: 'ledger_buy_ins',
-      CASH_OUTS: 'ledger_cash_outs',
+      EVENTS: 'ledger_events',
       USERNAMES: 'ledger_usernames',
-      AMOUNTS: 'ledger_amounts'
+      AMOUNTS_BUY_IN_CASH: 'ledger_amounts_buy_in_cash',
+      AMOUNTS_BUY_IN_IOU: 'ledger_amounts_buy_in_iou',
+      AMOUNTS_CASH_OUT_CASH: 'ledger_amounts_cash_out_cash',
+      AMOUNTS_CASH_OUT_IOU: 'ledger_amounts_cash_out_iou'
     };
+
+    const EVENT_TYPES = {
+      'buy-in-cash': 'Buy-In Cash',
+      'buy-in-iou': 'Buy-In IOU',
+      'cash-out-cash': 'Cash-Out Cash',
+      'cash-out-iou': 'Cash-Out IOU',
+      'edit': 'Edit'
+    };
+
+    function getAmountKey(type) {
+      const map = {
+        'buy-in-cash': STORAGE_KEYS.AMOUNTS_BUY_IN_CASH,
+        'buy-in-iou': STORAGE_KEYS.AMOUNTS_BUY_IN_IOU,
+        'cash-out-cash': STORAGE_KEYS.AMOUNTS_CASH_OUT_CASH,
+        'cash-out-iou': STORAGE_KEYS.AMOUNTS_CASH_OUT_IOU
+      };
+      return map[type];
+    }
 
     function getData(key) {
       const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : (key === STORAGE_KEYS.BUY_INS ? [] : {});
+      return data ? JSON.parse(data) : (key === STORAGE_KEYS.EVENTS ? [] : {});
     }
 
     function setData(key, data) {
@@ -512,13 +608,15 @@
     }
 
     function formatCurrency(amount) {
-      return '$' + parseFloat(amount).toFixed(2);
+      const num = parseFloat(amount);
+      return '$' + (num % 1 === 0 ? num.toFixed(0) : num.toFixed(2));
     }
 
     function formatTime(timestamp) {
       return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    // Tabs
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -531,36 +629,49 @@
 
     function renderCurrentTab() {
       const activeTab = document.querySelector('.tab-content.active').id;
-      if (activeTab === 'buy-in-list') renderBuyInList();
-      if (activeTab === 'cash-out') renderCashOut();
+      if (activeTab === 'event-list') renderEventList();
       if (activeTab === 'results') renderResults();
     }
 
+    // Event type selector
+    let selectedEventType = 'buy-in-cash';
+
+    document.getElementById('event-type-selector').addEventListener('click', (e) => {
+      const btn = e.target.closest('.type-selector-btn');
+      if (!btn) return;
+      document.querySelectorAll('.type-selector-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedEventType = btn.dataset.type;
+      renderAutocomplete();
+    });
+
+    // Autocomplete
     function renderAutocomplete() {
       const usernames = getData(STORAGE_KEYS.USERNAMES);
-      const amounts = getData(STORAGE_KEYS.AMOUNTS);
-      
+      const type = selectedEventType;
+      const amounts = getData(getAmountKey(type));
+
       const usernameContainer = document.getElementById('username-autocomplete');
       const amountContainer = document.getElementById('amount-autocomplete');
-      
+
       usernameContainer.innerHTML = Object.keys(usernames)
         .sort((a, b) => usernames[b] - usernames[a])
         .slice(0, 10)
         .map(name => `<button type="button" class="autocomplete-btn" data-value="${name}">${name}</button>`)
         .join('');
-      
+
       amountContainer.innerHTML = Object.keys(amounts)
         .sort((a, b) => amounts[b] - amounts[a])
         .slice(0, 10)
         .map(amt => `<button type="button" class="autocomplete-btn" data-value="${amt}">${formatCurrency(amt)}</button>`)
         .join('');
-      
+
       usernameContainer.querySelectorAll('.autocomplete-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.getElementById('username').value = btn.dataset.value;
         });
       });
-      
+
       amountContainer.querySelectorAll('.autocomplete-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           document.getElementById('amount').value = btn.dataset.value;
@@ -568,219 +679,238 @@
       });
     }
 
-    document.getElementById('buy-in-form').addEventListener('submit', (e) => {
+
+    // Add Event
+    document.getElementById('event-form').addEventListener('submit', (e) => {
       e.preventDefault();
 
       const username = document.getElementById('username').value.trim();
-      const amount = parseFloat(document.getElementById('amount').value) || 0;
-      const iouAmount = parseFloat(document.getElementById('iou-amount').value) || 0;
+      const type = selectedEventType;
+      const amount = parseFloat(document.getElementById('amount').value);
+      const notes = document.getElementById('notes').value.trim();
 
-      if (!username || (amount + iouAmount) <= 0) return;
+      if (!username || isNaN(amount) || amount <= 0) return;
 
-      const buyIns = getData(STORAGE_KEYS.BUY_INS);
-      buyIns.push({
+      const events = getData(STORAGE_KEYS.EVENTS);
+      events.push({
         id: Date.now(),
         username,
+        type,
         amount,
-        iouAmount,
+        notes,
         timestamp: Date.now()
       });
-      setData(STORAGE_KEYS.BUY_INS, buyIns);
+      setData(STORAGE_KEYS.EVENTS, events);
 
       const usernames = getData(STORAGE_KEYS.USERNAMES);
       usernames[username] = (usernames[username] || 0) + 1;
       setData(STORAGE_KEYS.USERNAMES, usernames);
 
-      const total = amount + iouAmount;
-      const amounts = getData(STORAGE_KEYS.AMOUNTS);
-      amounts[total] = (amounts[total] || 0) + 1;
-      setData(STORAGE_KEYS.AMOUNTS, amounts);
+      const amountKey = getAmountKey(type);
+      const amounts = getData(amountKey);
+      amounts[amount] = (amounts[amount] || 0) + 1;
+      setData(amountKey, amounts);
 
       document.getElementById('username').value = '';
       document.getElementById('amount').value = '';
-      document.getElementById('iou-amount').value = '';
+      document.getElementById('notes').value = '';
 
       renderAutocomplete();
     });
 
-    function renderBuyInList() {
-      const buyIns = getData(STORAGE_KEYS.BUY_INS);
-      const tbody = document.getElementById('buy-in-table-body');
-      const emptyState = document.getElementById('buy-in-empty');
+    // Event List
+    function renderEventList() {
+      const events = getData(STORAGE_KEYS.EVENTS);
+      const tbody = document.getElementById('event-table-body');
+      const emptyState = document.getElementById('event-list-empty');
       const table = tbody.closest('table');
-      
-      if (buyIns.length === 0) {
+
+      if (events.length === 0) {
         table.style.display = 'none';
         emptyState.style.display = 'block';
         document.getElementById('total-players').textContent = '0';
-        document.getElementById('total-buy-ins').textContent = '$0';
+        document.getElementById('total-events').textContent = '0';
         return;
       }
-      
+
       table.style.display = 'table';
       emptyState.style.display = 'none';
-      
-      const uniquePlayers = [...new Set(buyIns.map(b => b.username))];
-      const totalAmount = buyIns.reduce((sum, b) => sum + b.amount + (b.iouAmount || 0), 0);
 
+      const mainEvents = events.filter(e => e.type !== 'edit');
+      const editsByParent = {};
+      events.filter(e => e.type === 'edit').forEach(e => {
+        if (!editsByParent[e.editedEventId]) editsByParent[e.editedEventId] = [];
+        editsByParent[e.editedEventId].push(e);
+      });
+
+      const uniquePlayers = [...new Set(mainEvents.map(e => e.username))];
       document.getElementById('total-players').textContent = uniquePlayers.length;
-      document.getElementById('total-buy-ins').textContent = formatCurrency(totalAmount);
+      document.getElementById('total-events').textContent = mainEvents.length;
 
-      tbody.innerHTML = buyIns.map(buyIn => {
-        const cash = buyIn.amount || 0;
-        const iou = buyIn.iouAmount || 0;
-        return `
-          <tr>
-            <td>${buyIn.username}</td>
-            <td>${formatCurrency(cash)}</td>
-            <td>${iou > 0 ? formatCurrency(iou) : '-'}</td>
-            <td>${formatCurrency(cash + iou)}</td>
-            <td>${formatTime(buyIn.timestamp)}</td>
+      let html = '';
+      mainEvents.forEach((ev, idx) => {
+        const num = idx + 1;
+        html += `
+          <tr id="row-${ev.id}">
+            <td>${num}</td>
+            <td>${ev.username}</td>
+            <td><span class="type-badge type-${ev.type}">${EVENT_TYPES[ev.type]}</span></td>
+            <td>${formatCurrency(ev.amount)}</td>
+            <td>${ev.notes ? `<span class="notes-text">${ev.notes}</span>` : '-'}</td>
+            <td>${formatTime(ev.timestamp)}</td>
             <td>
-              <button class="btn-small" onclick="deleteBuyIn(${buyIn.id})">Delete</button>
+              <button class="btn-small btn-save" onclick="startEdit(${ev.id})">Edit</button>
+              <button class="btn-small" onclick="deleteEvent(${ev.id})">Delete</button>
             </td>
           </tr>
         `;
-      }).join('');
+        const edits = editsByParent[ev.id] || [];
+        edits.forEach(edit => {
+          html += `
+            <tr class="edit-row">
+              <td></td>
+              <td></td>
+              <td><span class="type-badge type-edit">Edit</span></td>
+              <td style="opacity:0.6; font-size:0.8rem;">${edit.changeDescription || '-'}</td>
+              <td></td>
+              <td>${formatTime(edit.timestamp)}</td>
+              <td></td>
+            </tr>
+          `;
+        });
+      });
+      tbody.innerHTML = html;
     }
 
-    window.deleteBuyIn = function(id) {
-      const buyIns = getData(STORAGE_KEYS.BUY_INS);
-      const updated = buyIns.filter(b => b.id !== id);
-      setData(STORAGE_KEYS.BUY_INS, updated);
-      renderBuyInList();
+    window.startEdit = function(id) {
+      const events = getData(STORAGE_KEYS.EVENTS);
+      const ev = events.find(e => e.id === id);
+      if (!ev) return;
+
+      const mainEvents = events.filter(e => e.type !== 'edit');
+      const num = mainEvents.findIndex(e => e.id === id) + 1;
+
+      const row = document.getElementById(`row-${id}`);
+      const typeOptions = Object.entries(EVENT_TYPES)
+        .filter(([val]) => val !== 'edit')
+        .map(([val, label]) => `<option value="${val}" ${val === ev.type ? 'selected' : ''}>${label}</option>`)
+        .join('');
+
+      row.innerHTML = `
+        <td>${num}</td>
+        <td>${ev.username}</td>
+        <td><select class="edit-select" id="edit-type-${id}">${typeOptions}</select></td>
+        <td><input type="number" class="edit-input" id="edit-amount-${id}" value="${ev.amount}" min="0.01" step="0.01"></td>
+        <td><input type="text" class="edit-input edit-notes" id="edit-notes-${id}" value="${ev.notes || ''}" placeholder="Notes"></td>
+        <td>${formatTime(ev.timestamp)}</td>
+        <td>
+          <button class="btn-small btn-save" onclick="saveEdit(${id})">Save</button>
+          <button class="btn-small btn-cancel" onclick="renderEventList()">Cancel</button>
+        </td>
+      `;
     };
 
-    document.getElementById('clear-buy-ins').addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all buy-ins?')) {
-        setData(STORAGE_KEYS.BUY_INS, []);
-        setData(STORAGE_KEYS.CASH_OUTS, {});
-        renderBuyInList();
+    window.saveEdit = function(id) {
+      const type = document.getElementById(`edit-type-${id}`).value;
+      const amount = parseFloat(document.getElementById(`edit-amount-${id}`).value);
+      const notes = document.getElementById(`edit-notes-${id}`).value.trim();
+
+      if (isNaN(amount) || amount <= 0) return;
+
+      const events = getData(STORAGE_KEYS.EVENTS);
+      const idx = events.findIndex(e => e.id === id);
+      if (idx === -1) return;
+
+      const old = events[idx];
+      const changes = [];
+      if (old.type !== type) changes.push(`${EVENT_TYPES[old.type]} → ${EVENT_TYPES[type]}`);
+      if (old.amount !== amount) changes.push(`${formatCurrency(old.amount)} → ${formatCurrency(amount)}`);
+      if ((old.notes || '') !== notes) changes.push(`notes: "${old.notes || ''}" → "${notes}"`);
+
+      if (changes.length > 0) {
+        events.push({
+          id: Date.now(),
+          username: old.username,
+          type: 'edit',
+          amount: 0,
+          changeDescription: changes.join('; '),
+          timestamp: Date.now(),
+          editedEventId: id
+        });
+
+        events[idx].type = type;
+        events[idx].amount = amount;
+        events[idx].notes = notes;
+
+        setData(STORAGE_KEYS.EVENTS, events);
+      }
+
+      renderEventList();
+    };
+
+    window.deleteEvent = function(id) {
+      const events = getData(STORAGE_KEYS.EVENTS);
+      const updated = events.filter(e => e.id !== id);
+      setData(STORAGE_KEYS.EVENTS, updated);
+      renderEventList();
+    };
+
+    document.getElementById('clear-events').addEventListener('click', () => {
+      if (confirm('Are you sure you want to clear all events?')) {
+        setData(STORAGE_KEYS.EVENTS, []);
+        renderEventList();
       }
     });
 
-    function getPlayerTotals() {
-      const buyIns = getData(STORAGE_KEYS.BUY_INS);
-      const totals = {};
+    // Results
+    function getPlayerSummary() {
+      const events = getData(STORAGE_KEYS.EVENTS);
+      const summary = {};
 
-      buyIns.forEach(buyIn => {
-        if (!totals[buyIn.username]) {
-          totals[buyIn.username] = { cash: 0, iou: 0 };
+      events.forEach(ev => {
+        if (ev.type === 'edit') return;
+        if (!summary[ev.username]) {
+          summary[ev.username] = { buyInCash: 0, buyInIou: 0, cashOutCash: 0, cashOutIou: 0 };
         }
-        totals[buyIn.username].cash += buyIn.amount || 0;
-        totals[buyIn.username].iou += buyIn.iouAmount || 0;
+        if (ev.type === 'buy-in-cash') summary[ev.username].buyInCash += ev.amount;
+        else if (ev.type === 'buy-in-iou') summary[ev.username].buyInIou += ev.amount;
+        else if (ev.type === 'cash-out-cash') summary[ev.username].cashOutCash += ev.amount;
+        else if (ev.type === 'cash-out-iou') summary[ev.username].cashOutIou += ev.amount;
       });
 
-      return totals;
-    }
-
-    function renderCashOut() {
-      const playerTotals = getPlayerTotals();
-      const cashOuts = getData(STORAGE_KEYS.CASH_OUTS);
-      const tbody = document.getElementById('cash-out-table-body');
-      const emptyState = document.getElementById('cash-out-empty');
-      const table = tbody.closest('table');
-
-      const players = Object.keys(playerTotals);
-
-      if (players.length === 0) {
-        table.style.display = 'none';
-        emptyState.style.display = 'block';
-        return;
-      }
-
-      table.style.display = 'table';
-      emptyState.style.display = 'none';
-
-      tbody.innerHTML = players.map(player => {
-        const totals = playerTotals[player];
-        const totalBuyIn = totals.cash + totals.iou;
-        const co = cashOuts[player];
-        const cashVal = co ? (co.cash !== undefined ? co.cash : co) : '';
-        const iouVal = co ? (co.iou !== undefined ? co.iou : 0) : '';
-        return `
-          <tr>
-            <td>${player}</td>
-            <td>${formatCurrency(totalBuyIn)}</td>
-            <td>
-              <input type="number" class="cash-out-input" id="cashout-cash-${player}"
-                value="${cashVal}" placeholder="0.00" min="0" step="0.01">
-            </td>
-            <td>
-              <input type="number" class="cash-out-input" id="cashout-iou-${player}"
-                value="${iouVal}" placeholder="0.00" min="0" step="0.01">
-            </td>
-            <td>
-              <button class="btn-small btn-save" onclick="saveCashOut('${player}')">Save</button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    window.saveCashOut = function(player) {
-      const cashInput = document.getElementById(`cashout-cash-${player}`);
-      const iouInput = document.getElementById(`cashout-iou-${player}`);
-      const cashVal = parseFloat(cashInput.value) || 0;
-      const iouVal = parseFloat(iouInput.value) || 0;
-
-      const cashOuts = getData(STORAGE_KEYS.CASH_OUTS);
-
-      if (cashVal <= 0 && iouVal <= 0) {
-        delete cashOuts[player];
-      } else {
-        cashOuts[player] = { cash: cashVal, iou: iouVal };
-      }
-
-      setData(STORAGE_KEYS.CASH_OUTS, cashOuts);
-      [cashInput, iouInput].forEach(input => {
-        input.style.borderColor = 'var(--positive)';
-        setTimeout(() => { input.style.borderColor = ''; }, 1000);
-      });
-    };
-
-    function getCashOutTotal(co) {
-      if (co === null || co === undefined) return null;
-      if (typeof co === 'number') return co;
-      return (co.cash || 0) + (co.iou || 0);
-    }
-
-    function getCashOutParts(co) {
-      if (typeof co === 'number') return { cash: co, iou: 0 };
-      return { cash: co.cash || 0, iou: co.iou || 0 };
+      return summary;
     }
 
     function renderResults() {
-      const playerTotals = getPlayerTotals();
-      const cashOuts = getData(STORAGE_KEYS.CASH_OUTS);
+      const summary = getPlayerSummary();
       const tbody = document.getElementById('results-table-body');
       const emptyState = document.getElementById('results-empty');
       const table = tbody.closest('table');
 
-      const players = Object.keys(playerTotals);
-      const results = players
-        .map(player => {
-          const totals = playerTotals[player];
-          const buyIn = totals.cash + totals.iou;
-          const co = cashOuts[player] !== undefined ? cashOuts[player] : null;
-          const cashOutTotal = getCashOutTotal(co);
-          const net = cashOutTotal !== null ? cashOutTotal - buyIn : null;
-          const coParts = co ? getCashOutParts(co) : null;
-          return { player, buyIn, buyInCash: totals.cash, buyInIou: totals.iou, cashOutTotal, coParts, net };
-        })
-        .filter(r => r.cashOutTotal !== null)
+      const players = Object.keys(summary);
+      const results = players.map(player => {
+        const s = summary[player];
+        const totalBuyIn = s.buyInCash + s.buyInIou;
+        const totalCashOut = s.cashOutCash + s.cashOutIou;
+        const net = totalCashOut - totalBuyIn;
+        return { player, totalBuyIn, totalCashOut, net, ...s };
+      }).filter(r => r.totalBuyIn > 0 || r.totalCashOut > 0)
         .sort((a, b) => b.net - a.net);
 
-      const totalCashOut = results.reduce((sum, r) => sum + r.cashOutTotal, 0);
-      const totalBuyIn = results.reduce((sum, r) => sum + r.buyIn, 0);
-      const difference = totalCashOut - totalBuyIn;
+      const grandTotalCashOut = results.reduce((sum, r) => sum + r.totalCashOut, 0);
+      const grandTotalBuyIn = results.reduce((sum, r) => sum + r.totalBuyIn, 0);
+      const hostEarnings = grandTotalBuyIn - grandTotalCashOut;
 
-      document.getElementById('total-cash-out').textContent = formatCurrency(totalCashOut);
+      document.getElementById('total-cash-out').textContent = formatCurrency(grandTotalCashOut);
 
       const diffElement = document.getElementById('cash-difference');
-      const diffDisplay = difference >= 0 ? '+' + formatCurrency(difference) : formatCurrency(difference);
+      const diffDisplay = hostEarnings >= 0 ? '+' + formatCurrency(hostEarnings) : formatCurrency(hostEarnings);
       diffElement.textContent = diffDisplay;
-      diffElement.className = 'summary-card-value ' + (difference > 0 ? 'positive' : (difference < 0 ? 'negative' : 'neutral'));
+      diffElement.className = 'summary-card-value ' + (hostEarnings > 0 ? 'positive' : (hostEarnings < 0 ? 'negative' : 'neutral'));
+      const subtitle = document.getElementById('discrepancy-subtitle');
+      if (hostEarnings > 0) subtitle.textContent = 'Host earns ' + formatCurrency(hostEarnings);
+      else if (hostEarnings < 0) subtitle.textContent = 'Host loses ' + formatCurrency(Math.abs(hostEarnings));
+      else subtitle.textContent = '';
 
       if (results.length === 0) {
         table.style.display = 'none';
@@ -813,32 +943,32 @@
         const netClass = r.net > 0 ? 'positive' : (r.net < 0 ? 'negative' : 'neutral');
         const netDisplay = r.net >= 0 ? '+' + formatCurrency(r.net) : formatCurrency(r.net);
         const buyInBreakdown = r.buyInIou > 0 ? `<br><span style="font-size:0.75rem;color:var(--fg-dim);">${formatCurrency(r.buyInCash)} cash + ${formatCurrency(r.buyInIou)} IOU</span>` : '';
-        const cashOutBreakdown = r.coParts && r.coParts.iou > 0 ? `<br><span style="font-size:0.75rem;color:var(--fg-dim);">${formatCurrency(r.coParts.cash)} cash + ${formatCurrency(r.coParts.iou)} IOU</span>` : '';
+        const cashOutBreakdown = r.cashOutIou > 0 ? `<br><span style="font-size:0.75rem;color:var(--fg-dim);">${formatCurrency(r.cashOutCash)} cash + ${formatCurrency(r.cashOutIou)} IOU</span>` : '';
         return `
           <tr>
             <td>${r.player}</td>
-            <td>${formatCurrency(r.buyIn)}${buyInBreakdown}</td>
-            <td>${formatCurrency(r.cashOutTotal)}${cashOutBreakdown}</td>
+            <td>${formatCurrency(r.totalBuyIn)}${buyInBreakdown}</td>
+            <td>${formatCurrency(r.totalCashOut)}${cashOutBreakdown}</td>
             <td class="${netClass}">${netDisplay}</td>
           </tr>
         `;
       }).join('');
 
-      renderIOUSummary(playerTotals, cashOuts);
+      renderIOUSummary(summary);
     }
 
-    function renderIOUSummary(playerTotals, cashOuts) {
+    function renderIOUSummary(summary) {
       const iouSummary = document.getElementById('iou-summary');
       const iouBody = document.getElementById('iou-table-body');
-      const players = Object.keys(playerTotals);
 
-      const iouData = players.map(player => {
-        const owesHost = playerTotals[player].iou;
-        const co = cashOuts[player];
-        const hostOwes = co ? (typeof co === 'number' ? 0 : (co.iou || 0)) : 0;
-        const netIou = owesHost - hostOwes;
-        return { player, owesHost, hostOwes, netIou };
-      }).filter(d => d.owesHost > 0 || d.hostOwes > 0);
+      const iouData = Object.entries(summary)
+        .map(([player, s]) => {
+          const owesHost = s.buyInIou;
+          const hostOwes = s.cashOutIou;
+          const netIou = owesHost - hostOwes;
+          return { player, owesHost, hostOwes, netIou };
+        })
+        .filter(d => d.owesHost > 0 || d.hostOwes > 0);
 
       if (iouData.length === 0) {
         iouSummary.style.display = 'none';
@@ -862,10 +992,10 @@
       }).join('');
     }
 
+    // Init
     function init() {
       renderAutocomplete();
-      renderBuyInList();
-      renderCashOut();
+      renderEventList();
       renderResults();
     }
 
