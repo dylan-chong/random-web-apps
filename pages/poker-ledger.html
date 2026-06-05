@@ -454,6 +454,21 @@
       color: var(--fg);
     }
 
+    .edit-input {
+      padding: 0.4rem 0.5rem;
+      background: var(--bg);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 4px;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+
+    .edit-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
     .empty-state {
       text-align: center;
       padding: 2rem;
@@ -500,12 +515,12 @@
     const html = htm.bind(h);
 
     const STORAGE_KEYS = {
-      EVENTS: 'ledger_events',
+      SESSIONS: 'ledger_sessions',
+      ACTIVE_SESSION: 'ledger_active_session',
       USERNAMES: 'ledger_usernames',
-      AMOUNTS_BUY_IN_CASH: 'ledger_amounts_buy_in_cash',
-      AMOUNTS_BUY_IN_IOU: 'ledger_amounts_buy_in_iou',
-      AMOUNTS_CASH_OUT_CASH: 'ledger_amounts_cash_out_cash',
-      AMOUNTS_CASH_OUT_IOU: 'ledger_amounts_cash_out_iou'
+      AMOUNTS_IN: 'ledger_amounts_in',
+      AMOUNTS_OUT: 'ledger_amounts_out',
+      IOU_PAID: 'ledger_iou_paid'
     };
 
     const EVENT_TYPES = {
@@ -517,15 +532,38 @@
     };
 
     const AMOUNT_KEY_MAP = {
-      'buy-in-cash': STORAGE_KEYS.AMOUNTS_BUY_IN_CASH,
-      'buy-in-iou': STORAGE_KEYS.AMOUNTS_BUY_IN_IOU,
-      'cash-out-cash': STORAGE_KEYS.AMOUNTS_CASH_OUT_CASH,
-      'cash-out-iou': STORAGE_KEYS.AMOUNTS_CASH_OUT_IOU
+      'buy-in-cash': STORAGE_KEYS.AMOUNTS_IN,
+      'buy-in-iou': STORAGE_KEYS.AMOUNTS_IN,
+      'cash-out-cash': STORAGE_KEYS.AMOUNTS_OUT,
+      'cash-out-iou': STORAGE_KEYS.AMOUNTS_OUT
     };
 
     function getData(key) {
       const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : (key === STORAGE_KEYS.EVENTS ? [] : {});
+      if (!data) {
+        if (key === STORAGE_KEYS.SESSIONS) return [];
+        return {};
+      }
+      return JSON.parse(data);
+    }
+
+    function getSessions() {
+      let sessions = getData(STORAGE_KEYS.SESSIONS);
+      if (!Array.isArray(sessions) || sessions.length === 0) {
+        const legacyEvents = localStorage.getItem('ledger_events');
+        const events = legacyEvents ? JSON.parse(legacyEvents) : [];
+        sessions = [{ id: Date.now(), name: 'Session 1', events }];
+        setData(STORAGE_KEYS.SESSIONS, sessions);
+        setData(STORAGE_KEYS.ACTIVE_SESSION, sessions[0].id);
+      }
+      return sessions;
+    }
+
+    function getActiveSessionId() {
+      const id = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+      if (id) return JSON.parse(id);
+      const sessions = getSessions();
+      return sessions[0].id;
     }
 
     function setData(key, data) {
@@ -553,7 +591,8 @@
     function TabBar({ activeTab, setActiveTab }) {
       const tabs = [
         { id: 'list', label: 'Events' },
-        { id: 'results', label: 'Results' }
+        { id: 'results', label: 'Results' },
+        { id: 'sessions', label: 'Sessions' }
       ];
       return html`
         <div class="tabs">
@@ -812,8 +851,23 @@
       `;
     }
 
-    function EventListTab({ events, setEvents }) {
+    function EventListTab({ events, setEvents, onNewSession }) {
       const [showAddModal, setShowAddModal] = useState(false);
+
+      function handleAddClick() {
+        const mainEvents = events.filter(e => e.type !== 'edit');
+        if (mainEvents.length > 0) {
+          const lastEvent = mainEvents[mainEvents.length - 1];
+          const hoursSince = (Date.now() - lastEvent.timestamp) / (1000 * 60 * 60);
+          if (hoursSince >= 8) {
+            if (confirm('It has been over 8 hours since the last event. Start a new session?')) {
+              onNewSession();
+              return;
+            }
+          }
+        }
+        setShowAddModal(true);
+      }
       const mainEvents = useMemo(() => events.filter(e => e.type !== 'edit'), [events]);
       const editsByParent = useMemo(() => {
         const map = {};
@@ -826,15 +880,9 @@
 
       const uniquePlayers = useMemo(() => [...new Set(mainEvents.map(e => e.username))], [mainEvents]);
 
-      function clearAll() {
-        if (confirm('Are you sure you want to clear all events?')) {
-          setEvents([]);
-          setData(STORAGE_KEYS.EVENTS, []);
-        }
-      }
 
       return html`
-        <button class="btn-primary" onClick=${() => setShowAddModal(true)}>+ Cash in / out</button>
+        <button class="btn-primary" onClick=${handleAddClick}>+ Cash in / out</button>
         ${mainEvents.length === 0 ? html`
           <div class="empty-state">
             <div class="empty-state-icon">🎰</div>
@@ -858,7 +906,6 @@
                 events=${events} setEvents=${setEvents} />
             `)}
           </div>
-          <button class="delete-all-btn" onClick=${clearAll}>Clear All Events</button>
         `}
         ${showAddModal && html`
           <${AddEventModal} events=${events} setEvents=${setEvents}
@@ -867,7 +914,7 @@
       `;
     }
 
-    function ResultsTab({ events }) {
+    function ResultsTab({ events, sessionId }) {
       const summary = useMemo(() => {
         const s = {};
         events.forEach(ev => {
@@ -981,39 +1028,135 @@
           </table>
         </div>
         ${iouData.length > 0 && html`
-          <div style="margin-top:1.5rem;">
-            <h3 style="color:var(--accent-light);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.75rem;">Outstanding IOUs</h3>
-            <div class="table-container">
-              <table>
-                <thead>
-                  <tr><th>Player</th><th>Owes Host</th><th>Host Owes</th><th>Net</th></tr>
-                </thead>
-                <tbody>
-                  ${iouData.map(d => {
-                    const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
-                    const netLabel = d.netIou > 0 ? d.player + ' owes ' + formatCurrency(d.netIou)
-                      : d.netIou < 0 ? 'Host owes ' + formatCurrency(Math.abs(d.netIou))
-                      : 'Settled';
-                    return html`
-                      <tr>
-                        <td>${d.player}</td>
-                        <td>${d.owesHost > 0 ? formatCurrency(d.owesHost) : '-'}</td>
-                        <td>${d.hostOwes > 0 ? formatCurrency(d.hostOwes) : '-'}</td>
-                        <td class=${netClass}>${netLabel}</td>
-                      </tr>
-                    `;
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <${IOUList} iouData=${iouData} sessionId=${sessionId} />
         `}
       `;
     }
 
+    function IOUList({ iouData, sessionId }) {
+      const [paidAmounts, setPaidAmounts] = useState(() => {
+        const all = getData(STORAGE_KEYS.IOU_PAID);
+        return all[sessionId] || {};
+      });
+
+      function updatePaid(player, value) {
+        const val = parseFloat(value) || 0;
+        const updated = { ...paidAmounts, [player]: val };
+        setPaidAmounts(updated);
+        const all = getData(STORAGE_KEYS.IOU_PAID);
+        all[sessionId] = updated;
+        setData(STORAGE_KEYS.IOU_PAID, all);
+      }
+
+      return html`
+        <div style="margin-top:1.5rem;">
+          <h3 style="color:var(--accent-light);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.75rem;">Outstanding IOUs</h3>
+          ${iouData.map(d => {
+            const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
+            const label = d.netIou > 0 ? d.player + ' owes host ' + formatCurrency(d.netIou)
+              : d.netIou < 0 ? 'Host owes ' + d.player + ' ' + formatCurrency(Math.abs(d.netIou))
+              : d.player + ' — Settled';
+            const paid = paidAmounts[d.player] || '';
+            return html`
+              <div style="padding:0.6rem 0;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+                <span class=${netClass} style="flex:1;min-width:0;">${label}</span>
+                <div style="display:flex;align-items:center;gap:0.3rem;">
+                  <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
+                  <input type="number" class="edit-input" style="width:60px;" placeholder="0"
+                    value=${paid} onInput=${e => updatePaid(d.player, e.target.value)} />
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      `;
+    }
+
+    function SessionsTab({ sessions, setSessions, activeSessionId, setActiveSessionId, setActiveTab }) {
+      function createSession() {
+        const newSession = { id: Date.now(), name: 'New session', events: [] };
+        const updated = [...sessions, newSession];
+        setSessions(updated);
+        setData(STORAGE_KEYS.SESSIONS, updated);
+        setActiveSessionId(newSession.id);
+        setData(STORAGE_KEYS.ACTIVE_SESSION, newSession.id);
+        setActiveTab('list');
+      }
+
+      function openSession(id) {
+        setActiveSessionId(id);
+        setData(STORAGE_KEYS.ACTIVE_SESSION, id);
+        setActiveTab('list');
+      }
+
+      function deleteSession(id) {
+        if (sessions.length <= 1) return;
+        if (!confirm('Delete this session and all its events?')) return;
+        const updated = sessions.filter(s => s.id !== id);
+        setSessions(updated);
+        setData(STORAGE_KEYS.SESSIONS, updated);
+        if (activeSessionId === id) {
+          setActiveSessionId(updated[0].id);
+          setData(STORAGE_KEYS.ACTIVE_SESSION, updated[0].id);
+        }
+      }
+
+      return html`
+        <button class="btn-primary" onClick=${createSession}>+ New Session</button>
+        <div style="margin-top:1rem;">
+          ${sessions.map(s => html`
+            <div style="padding:0.75rem;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;">
+              <span style="flex:1;cursor:pointer;" onClick=${() => openSession(s.id)}>
+                <span style="font-weight:${s.id === activeSessionId ? '600' : '400'};color:${s.id === activeSessionId ? 'var(--accent)' : 'var(--fg)'};">
+                  ${s.name}
+                </span>
+                <span style="font-size:0.7rem;color:var(--fg-dim);margin-left:0.5rem;">${s.events.length} events</span>
+                ${s.id === activeSessionId && html`<span style="font-size:0.65rem;color:var(--accent);margin-left:0.5rem;">● active</span>`}
+              </span>
+              ${sessions.length > 1 && html`
+                <button class="btn-small" onClick=${() => deleteSession(s.id)}>Delete</button>
+              `}
+            </div>
+          `)}
+        </div>
+      `;
+    }
+
+    function formatSessionName(timestamp) {
+      const d = new Date(timestamp);
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
     function App() {
       const [activeTab, setActiveTab] = useState('list');
-      const [events, setEvents] = useState(() => getData(STORAGE_KEYS.EVENTS));
+      const [sessions, setSessions] = useState(() => getSessions());
+      const [activeSessionId, setActiveSessionId] = useState(() => getActiveSessionId());
+
+      const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
+      const events = activeSession ? activeSession.events : [];
+
+      function setEvents(newEvents) {
+        const updated = sessions.map(s => {
+          if (s.id !== activeSessionId) return s;
+          const updatedSession = { ...s, events: newEvents };
+          if (newEvents.length > 0 && s.name.startsWith('Session ')) {
+            const firstEvent = newEvents.find(e => e.type !== 'edit');
+            if (firstEvent) updatedSession.name = formatSessionName(firstEvent.timestamp);
+          }
+          return updatedSession;
+        });
+        setSessions(updated);
+        setData(STORAGE_KEYS.SESSIONS, updated);
+      }
+
+      function createNewSession() {
+        const newSession = { id: Date.now(), name: 'New session', events: [] };
+        const updated = [...sessions, newSession];
+        setSessions(updated);
+        setData(STORAGE_KEYS.SESSIONS, updated);
+        setActiveSessionId(newSession.id);
+        setData(STORAGE_KEYS.ACTIVE_SESSION, newSession.id);
+      }
 
       return html`
         <a href="../index.html" class="back-link">
@@ -1022,12 +1165,15 @@
         </a>
         <header>
           <h1>Poker Ledger</h1>
-          <p class="subtitle">Track your table stakes</p>
+          <p class="subtitle">${activeSession ? activeSession.name : ''}</p>
         </header>
         <${TabBar} activeTab=${activeTab} setActiveTab=${setActiveTab} />
         <div class="tab-content">
-          ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} />`}
-          ${activeTab === 'results' && html`<${ResultsTab} events=${events} />`}
+          ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} onNewSession=${createNewSession} />`}
+          ${activeTab === 'results' && html`<${ResultsTab} events=${events} sessionId=${activeSessionId} />`}
+          ${activeTab === 'sessions' && html`<${SessionsTab} sessions=${sessions} setSessions=${setSessions}
+            activeSessionId=${activeSessionId} setActiveSessionId=${setActiveSessionId}
+            setActiveTab=${setActiveTab} />`}
         </div>
       `;
     }
