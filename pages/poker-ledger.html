@@ -859,8 +859,7 @@
         if (mainEvents.length > 0) {
           const lastEvent = mainEvents[mainEvents.length - 1];
           const hoursSince = (Date.now() - lastEvent.timestamp) / (1000 * 60 * 60);
-          console.log('AAAAAAAAAAA')
-          if (hoursSince >= 8 || true) {
+          if (hoursSince >= 8) {
             if (confirm('It has been over 8 hours since the last event. Start a new session?')) {
               onNewSession();
               return;
