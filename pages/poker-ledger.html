@@ -373,9 +373,13 @@
           <div id="username-autocomplete" class="autocomplete-btns"></div>
         </div>
         <div class="form-group">
-          <label for="amount">Buy-In Amount ($)</label>
-          <input type="number" id="amount" placeholder="Enter amount" min="0" step="0.01" required>
+          <label for="amount">Cash Amount ($)</label>
+          <input type="number" id="amount" placeholder="Enter cash amount" min="0" step="0.01">
           <div id="amount-autocomplete" class="autocomplete-btns"></div>
+        </div>
+        <div class="form-group">
+          <label for="iou-amount">IOU Amount ($) <span style="font-size:0.7rem; color:var(--fg-dim); text-transform:none; letter-spacing:normal;">— player owes host</span></label>
+          <input type="number" id="iou-amount" placeholder="Enter IOU amount" min="0" step="0.01">
         </div>
         <button type="submit" class="btn-primary">Add Buy-In</button>
       </form>
@@ -397,7 +401,9 @@
           <thead>
             <tr>
               <th>Player</th>
-              <th>Amount</th>
+              <th>Cash</th>
+              <th>IOU</th>
+              <th>Total</th>
               <th>Time</th>
               <th>Action</th>
             </tr>
@@ -419,7 +425,8 @@
             <tr>
               <th>Player</th>
               <th>Total Buy-In</th>
-              <th>Cash Out</th>
+              <th>Cash Out ($)</th>
+              <th>IOU Out ($) <span style="font-size:0.65rem; font-weight:normal; text-transform:none; letter-spacing:normal;">host owes player</span></th>
               <th>Action</th>
             </tr>
           </thead>
@@ -467,6 +474,22 @@
       <div id="results-empty" class="empty-state">
         <div class="empty-state-icon">📊</div>
         <p>Complete cash-outs to see results</p>
+      </div>
+      <div id="iou-summary" style="margin-top:2rem; display:none;">
+        <h3 style="color:var(--accent-light); font-size:1rem; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:1rem;">Outstanding IOUs</h3>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Player</th>
+                <th>Owes Host (Buy-In IOUs)</th>
+                <th>Host Owes (Cash-Out IOUs)</th>
+                <th>Net IOU</th>
+              </tr>
+            </thead>
+            <tbody id="iou-table-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -547,32 +570,36 @@
 
     document.getElementById('buy-in-form').addEventListener('submit', (e) => {
       e.preventDefault();
-      
+
       const username = document.getElementById('username').value.trim();
-      const amount = parseFloat(document.getElementById('amount').value);
-      
-      if (!username || isNaN(amount) || amount <= 0) return;
-      
+      const amount = parseFloat(document.getElementById('amount').value) || 0;
+      const iouAmount = parseFloat(document.getElementById('iou-amount').value) || 0;
+
+      if (!username || (amount + iouAmount) <= 0) return;
+
       const buyIns = getData(STORAGE_KEYS.BUY_INS);
       buyIns.push({
         id: Date.now(),
         username,
         amount,
+        iouAmount,
         timestamp: Date.now()
       });
       setData(STORAGE_KEYS.BUY_INS, buyIns);
-      
+
       const usernames = getData(STORAGE_KEYS.USERNAMES);
       usernames[username] = (usernames[username] || 0) + 1;
       setData(STORAGE_KEYS.USERNAMES, usernames);
-      
+
+      const total = amount + iouAmount;
       const amounts = getData(STORAGE_KEYS.AMOUNTS);
-      amounts[amount] = (amounts[amount] || 0) + 1;
+      amounts[total] = (amounts[total] || 0) + 1;
       setData(STORAGE_KEYS.AMOUNTS, amounts);
-      
+
       document.getElementById('username').value = '';
       document.getElementById('amount').value = '';
-      
+      document.getElementById('iou-amount').value = '';
+
       renderAutocomplete();
     });
 
@@ -594,21 +621,27 @@
       emptyState.style.display = 'none';
       
       const uniquePlayers = [...new Set(buyIns.map(b => b.username))];
-      const totalAmount = buyIns.reduce((sum, b) => sum + b.amount, 0);
-      
+      const totalAmount = buyIns.reduce((sum, b) => sum + b.amount + (b.iouAmount || 0), 0);
+
       document.getElementById('total-players').textContent = uniquePlayers.length;
       document.getElementById('total-buy-ins').textContent = formatCurrency(totalAmount);
-      
-      tbody.innerHTML = buyIns.map(buyIn => `
-        <tr>
-          <td>${buyIn.username}</td>
-          <td>${formatCurrency(buyIn.amount)}</td>
-          <td>${formatTime(buyIn.timestamp)}</td>
-          <td>
-            <button class="btn-small" onclick="deleteBuyIn(${buyIn.id})">Delete</button>
-          </td>
-        </tr>
-      `).join('');
+
+      tbody.innerHTML = buyIns.map(buyIn => {
+        const cash = buyIn.amount || 0;
+        const iou = buyIn.iouAmount || 0;
+        return `
+          <tr>
+            <td>${buyIn.username}</td>
+            <td>${formatCurrency(cash)}</td>
+            <td>${iou > 0 ? formatCurrency(iou) : '-'}</td>
+            <td>${formatCurrency(cash + iou)}</td>
+            <td>${formatTime(buyIn.timestamp)}</td>
+            <td>
+              <button class="btn-small" onclick="deleteBuyIn(${buyIn.id})">Delete</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
     window.deleteBuyIn = function(id) {
@@ -629,14 +662,15 @@
     function getPlayerTotals() {
       const buyIns = getData(STORAGE_KEYS.BUY_INS);
       const totals = {};
-      
+
       buyIns.forEach(buyIn => {
         if (!totals[buyIn.username]) {
-          totals[buyIn.username] = 0;
+          totals[buyIn.username] = { cash: 0, iou: 0 };
         }
-        totals[buyIn.username] += buyIn.amount;
+        totals[buyIn.username].cash += buyIn.amount || 0;
+        totals[buyIn.username].iou += buyIn.iouAmount || 0;
       });
-      
+
       return totals;
     }
 
@@ -646,27 +680,35 @@
       const tbody = document.getElementById('cash-out-table-body');
       const emptyState = document.getElementById('cash-out-empty');
       const table = tbody.closest('table');
-      
+
       const players = Object.keys(playerTotals);
-      
+
       if (players.length === 0) {
         table.style.display = 'none';
         emptyState.style.display = 'block';
         return;
       }
-      
+
       table.style.display = 'table';
       emptyState.style.display = 'none';
-      
+
       tbody.innerHTML = players.map(player => {
-        const cashOut = cashOuts[player] !== undefined ? cashOuts[player] : '';
+        const totals = playerTotals[player];
+        const totalBuyIn = totals.cash + totals.iou;
+        const co = cashOuts[player];
+        const cashVal = co ? (co.cash !== undefined ? co.cash : co) : '';
+        const iouVal = co ? (co.iou !== undefined ? co.iou : 0) : '';
         return `
           <tr>
             <td>${player}</td>
-            <td>${formatCurrency(playerTotals[player])}</td>
+            <td>${formatCurrency(totalBuyIn)}</td>
             <td>
-              <input type="number" class="cash-out-input" id="cashout-${player}" 
-                value="${cashOut}" placeholder="0.00" min="0" step="0.01">
+              <input type="number" class="cash-out-input" id="cashout-cash-${player}"
+                value="${cashVal}" placeholder="0.00" min="0" step="0.01">
+            </td>
+            <td>
+              <input type="number" class="cash-out-input" id="cashout-iou-${player}"
+                value="${iouVal}" placeholder="0.00" min="0" step="0.01">
             </td>
             <td>
               <button class="btn-small btn-save" onclick="saveCashOut('${player}')">Save</button>
@@ -677,23 +719,36 @@
     }
 
     window.saveCashOut = function(player) {
-      const input = document.getElementById(`cashout-${player}`);
-      const value = parseFloat(input.value);
-      
+      const cashInput = document.getElementById(`cashout-cash-${player}`);
+      const iouInput = document.getElementById(`cashout-iou-${player}`);
+      const cashVal = parseFloat(cashInput.value) || 0;
+      const iouVal = parseFloat(iouInput.value) || 0;
+
       const cashOuts = getData(STORAGE_KEYS.CASH_OUTS);
-      
-      if (isNaN(value) || value < 0) {
+
+      if (cashVal <= 0 && iouVal <= 0) {
         delete cashOuts[player];
       } else {
-        cashOuts[player] = value;
+        cashOuts[player] = { cash: cashVal, iou: iouVal };
       }
-      
+
       setData(STORAGE_KEYS.CASH_OUTS, cashOuts);
-      input.style.borderColor = 'var(--positive)';
-      setTimeout(() => {
-        input.style.borderColor = '';
-      }, 1000);
+      [cashInput, iouInput].forEach(input => {
+        input.style.borderColor = 'var(--positive)';
+        setTimeout(() => { input.style.borderColor = ''; }, 1000);
+      });
     };
+
+    function getCashOutTotal(co) {
+      if (co === null || co === undefined) return null;
+      if (typeof co === 'number') return co;
+      return (co.cash || 0) + (co.iou || 0);
+    }
+
+    function getCashOutParts(co) {
+      if (typeof co === 'number') return { cash: co, iou: 0 };
+      return { cash: co.cash || 0, iou: co.iou || 0 };
+    }
 
     function renderResults() {
       const playerTotals = getPlayerTotals();
@@ -701,64 +756,107 @@
       const tbody = document.getElementById('results-table-body');
       const emptyState = document.getElementById('results-empty');
       const table = tbody.closest('table');
-      
+
       const players = Object.keys(playerTotals);
       const results = players
         .map(player => {
-          const buyIn = playerTotals[player];
-          const cashOut = cashOuts[player] !== undefined ? cashOuts[player] : null;
-          const net = cashOut !== null ? cashOut - buyIn : null;
-          return { player, buyIn, cashOut, net };
+          const totals = playerTotals[player];
+          const buyIn = totals.cash + totals.iou;
+          const co = cashOuts[player] !== undefined ? cashOuts[player] : null;
+          const cashOutTotal = getCashOutTotal(co);
+          const net = cashOutTotal !== null ? cashOutTotal - buyIn : null;
+          const coParts = co ? getCashOutParts(co) : null;
+          return { player, buyIn, buyInCash: totals.cash, buyInIou: totals.iou, cashOutTotal, coParts, net };
         })
-        .filter(r => r.cashOut !== null)
+        .filter(r => r.cashOutTotal !== null)
         .sort((a, b) => b.net - a.net);
-      
-      const totalCashOut = results.reduce((sum, r) => sum + r.cashOut, 0);
+
+      const totalCashOut = results.reduce((sum, r) => sum + r.cashOutTotal, 0);
       const totalBuyIn = results.reduce((sum, r) => sum + r.buyIn, 0);
       const difference = totalCashOut - totalBuyIn;
-      
+
       document.getElementById('total-cash-out').textContent = formatCurrency(totalCashOut);
-      
+
       const diffElement = document.getElementById('cash-difference');
       const diffDisplay = difference >= 0 ? '+' + formatCurrency(difference) : formatCurrency(difference);
       diffElement.textContent = diffDisplay;
       diffElement.className = 'summary-card-value ' + (difference > 0 ? 'positive' : (difference < 0 ? 'negative' : 'neutral'));
-      
+
       if (results.length === 0) {
         table.style.display = 'none';
         emptyState.style.display = 'block';
         document.getElementById('biggest-winner').textContent = '-';
         document.getElementById('biggest-loser').textContent = '-';
+        document.getElementById('iou-summary').style.display = 'none';
         return;
       }
-      
+
       table.style.display = 'table';
       emptyState.style.display = 'none';
-      
+
       const winner = results[0];
       const loser = results[results.length - 1];
-      
+
       if (winner.net > 0) {
         document.getElementById('biggest-winner').textContent = `${winner.player} (+${formatCurrency(winner.net)})`;
       } else {
         document.getElementById('biggest-winner').textContent = '-';
       }
-      
+
       if (loser.net < 0) {
         document.getElementById('biggest-loser').textContent = `${loser.player} (${formatCurrency(loser.net)})`;
       } else {
         document.getElementById('biggest-loser').textContent = '-';
       }
-      
+
       tbody.innerHTML = results.map(r => {
         const netClass = r.net > 0 ? 'positive' : (r.net < 0 ? 'negative' : 'neutral');
         const netDisplay = r.net >= 0 ? '+' + formatCurrency(r.net) : formatCurrency(r.net);
+        const buyInBreakdown = r.buyInIou > 0 ? `<br><span style="font-size:0.75rem;color:var(--fg-dim);">${formatCurrency(r.buyInCash)} cash + ${formatCurrency(r.buyInIou)} IOU</span>` : '';
+        const cashOutBreakdown = r.coParts && r.coParts.iou > 0 ? `<br><span style="font-size:0.75rem;color:var(--fg-dim);">${formatCurrency(r.coParts.cash)} cash + ${formatCurrency(r.coParts.iou)} IOU</span>` : '';
         return `
           <tr>
             <td>${r.player}</td>
-            <td>${formatCurrency(r.buyIn)}</td>
-            <td>${formatCurrency(r.cashOut)}</td>
+            <td>${formatCurrency(r.buyIn)}${buyInBreakdown}</td>
+            <td>${formatCurrency(r.cashOutTotal)}${cashOutBreakdown}</td>
             <td class="${netClass}">${netDisplay}</td>
+          </tr>
+        `;
+      }).join('');
+
+      renderIOUSummary(playerTotals, cashOuts);
+    }
+
+    function renderIOUSummary(playerTotals, cashOuts) {
+      const iouSummary = document.getElementById('iou-summary');
+      const iouBody = document.getElementById('iou-table-body');
+      const players = Object.keys(playerTotals);
+
+      const iouData = players.map(player => {
+        const owesHost = playerTotals[player].iou;
+        const co = cashOuts[player];
+        const hostOwes = co ? (typeof co === 'number' ? 0 : (co.iou || 0)) : 0;
+        const netIou = owesHost - hostOwes;
+        return { player, owesHost, hostOwes, netIou };
+      }).filter(d => d.owesHost > 0 || d.hostOwes > 0);
+
+      if (iouData.length === 0) {
+        iouSummary.style.display = 'none';
+        return;
+      }
+
+      iouSummary.style.display = 'block';
+      iouBody.innerHTML = iouData.map(d => {
+        const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
+        const netLabel = d.netIou > 0 ? `${d.player} owes host ${formatCurrency(d.netIou)}`
+          : d.netIou < 0 ? `Host owes ${d.player} ${formatCurrency(Math.abs(d.netIou))}`
+          : 'Settled';
+        return `
+          <tr>
+            <td>${d.player}</td>
+            <td>${d.owesHost > 0 ? formatCurrency(d.owesHost) : '-'}</td>
+            <td>${d.hostOwes > 0 ? formatCurrency(d.hostOwes) : '-'}</td>
+            <td class="${netClass}">${netLabel}</td>
           </tr>
         `;
       }).join('');
