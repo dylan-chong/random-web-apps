@@ -552,7 +552,7 @@
       if (!Array.isArray(sessions) || sessions.length === 0) {
         const legacyEvents = localStorage.getItem('ledger_events');
         const events = legacyEvents ? JSON.parse(legacyEvents) : [];
-        sessions = [{ id: Date.now(), name: 'Session 1', events }];
+        sessions = [{ id: Date.now(), events }];
         setData(STORAGE_KEYS.SESSIONS, sessions);
         setData(STORAGE_KEYS.ACTIVE_SESSION, sessions[0].id);
       }
@@ -859,7 +859,8 @@
         if (mainEvents.length > 0) {
           const lastEvent = mainEvents[mainEvents.length - 1];
           const hoursSince = (Date.now() - lastEvent.timestamp) / (1000 * 60 * 60);
-          if (hoursSince >= 8) {
+          console.log('AAAAAAAAAAA')
+          if (hoursSince >= 8 || true) {
             if (confirm('It has been over 8 hours since the last event. Start a new session?')) {
               onNewSession();
               return;
@@ -1072,9 +1073,16 @@
       `;
     }
 
+    function getSessionDisplayName(session) {
+      const firstEvent = session.events.find(e => e.type !== 'edit');
+      if (!firstEvent) return 'New session';
+      const d = new Date(firstEvent.timestamp);
+      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
     function SessionsTab({ sessions, setSessions, activeSessionId, setActiveSessionId, setActiveTab }) {
       function createSession() {
-        const newSession = { id: Date.now(), name: 'New session', events: [] };
+        const newSession = { id: Date.now(), events: [] };
         const updated = [...sessions, newSession];
         setSessions(updated);
         setData(STORAGE_KEYS.SESSIONS, updated);
@@ -1105,26 +1113,39 @@
         <button class="btn-primary" onClick=${createSession}>+ New Session</button>
         <div style="margin-top:1rem;">
           ${sessions.map(s => html`
-            <div style="padding:0.75rem;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;">
-              <span style="flex:1;cursor:pointer;" onClick=${() => openSession(s.id)}>
-                <span style="font-weight:${s.id === activeSessionId ? '600' : '400'};color:${s.id === activeSessionId ? 'var(--accent)' : 'var(--fg)'};">
-                  ${s.name}
-                </span>
-                <span style="font-size:0.7rem;color:var(--fg-dim);margin-left:0.5rem;">${s.events.length} events</span>
-                ${s.id === activeSessionId && html`<span style="font-size:0.65rem;color:var(--accent);margin-left:0.5rem;">● active</span>`}
-              </span>
-              ${sessions.length > 1 && html`
-                <button class="btn-small" onClick=${() => deleteSession(s.id)}>Delete</button>
-              `}
-            </div>
+            <${SessionItem} key=${s.id} session=${s} isActive=${s.id === activeSessionId}
+              canDelete=${sessions.length > 1}
+              onOpen=${() => openSession(s.id)}
+              onDelete=${() => deleteSession(s.id)} />
           `)}
         </div>
       `;
     }
 
-    function formatSessionName(timestamp) {
-      const d = new Date(timestamp);
-      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    function SessionItem({ session, isActive, canDelete, onOpen, onDelete }) {
+      const [showPopover, setShowPopover] = useState(false);
+
+      return html`
+        <div style="padding:0.75rem;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;position:relative;">
+          <span style="flex:1;">
+            <span style="font-weight:${isActive ? '600' : '400'};color:${isActive ? 'var(--accent)' : 'var(--fg)'};">
+              ${getSessionDisplayName(session)}
+            </span>
+            <span style="font-size:0.7rem;color:var(--fg-dim);margin-left:0.5rem;">${session.events.length} events</span>
+            ${isActive && html`<span style="font-size:0.65rem;color:var(--accent);margin-left:0.5rem;">● active</span>`}
+          </span>
+          <button class="dots-btn" onClick=${() => setShowPopover(!showPopover)}>⋮</button>
+          ${showPopover && html`
+            <div class="popover-backdrop" onClick=${() => setShowPopover(false)}></div>
+            <div class="popover">
+              <button class="popover-item" onClick=${() => { setShowPopover(false); onOpen(); }}>Open</button>
+              ${canDelete && html`
+                <button class="popover-item danger" onClick=${() => { setShowPopover(false); onDelete(); }}>Delete</button>
+              `}
+            </div>
+          `}
+        </div>
+      `;
     }
 
     function App() {
@@ -1136,21 +1157,15 @@
       const events = activeSession ? activeSession.events : [];
 
       function setEvents(newEvents) {
-        const updated = sessions.map(s => {
-          if (s.id !== activeSessionId) return s;
-          const updatedSession = { ...s, events: newEvents };
-          if (newEvents.length > 0 && s.name.startsWith('Session ')) {
-            const firstEvent = newEvents.find(e => e.type !== 'edit');
-            if (firstEvent) updatedSession.name = formatSessionName(firstEvent.timestamp);
-          }
-          return updatedSession;
-        });
+        const updated = sessions.map(s =>
+          s.id === activeSessionId ? { ...s, events: newEvents } : s
+        );
         setSessions(updated);
         setData(STORAGE_KEYS.SESSIONS, updated);
       }
 
       function createNewSession() {
-        const newSession = { id: Date.now(), name: 'New session', events: [] };
+        const newSession = { id: Date.now(), events: [] };
         const updated = [...sessions, newSession];
         setSessions(updated);
         setData(STORAGE_KEYS.SESSIONS, updated);
@@ -1165,7 +1180,7 @@
         </a>
         <header>
           <h1>Poker Ledger</h1>
-          <p class="subtitle">${activeSession ? activeSession.name : ''}</p>
+          <p class="subtitle">${activeSession ? getSessionDisplayName(activeSession) : ''}</p>
         </header>
         <${TabBar} activeTab=${activeTab} setActiveTab=${setActiveTab} />
         <div class="tab-content">
