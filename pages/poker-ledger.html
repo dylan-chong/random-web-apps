@@ -1024,7 +1024,7 @@
               <span class=${netClass} style="flex:1;min-width:0;font-weight:normal;font-size:0.85rem;${isSettled ? 'opacity:0.4;' : ''}">${label}</span>
               <div style="display:flex;align-items:center;gap:0.3rem;">
                 <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
-                <input type="number" class="edit-input" style="width:80px;" placeholder="0"
+                <input type="number" class="edit-input" style="width:90px;" placeholder="0" step="0.01"
                   value=${paid} onInput=${e => updatePaid(d.player, e.target.value)} />
               </div>
             </div>
