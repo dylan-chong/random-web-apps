@@ -940,6 +940,10 @@
 
       const grandTotalCashOut = results.reduce((sum, r) => sum + r.totalCashOut, 0);
       const grandTotalBuyIn = results.reduce((sum, r) => sum + r.totalBuyIn, 0);
+      const totalCashIn = results.reduce((sum, r) => sum + r.buyInCash, 0);
+      const totalIOHost = results.reduce((sum, r) => sum + r.buyInIou, 0);
+      const totalCashOut = results.reduce((sum, r) => sum + r.cashOutCash, 0);
+      const totalIOPlayer = results.reduce((sum, r) => sum + r.cashOutIou, 0);
       const hostEarnings = grandTotalBuyIn - grandTotalCashOut;
 
 
@@ -981,8 +985,14 @@
       return html`
         <div class="summary-cards">
           <div class="summary-card">
-            <div class="summary-card-label">Total Cash Out</div>
+            <div class="summary-card-label">Total Money In</div>
+            <div class="summary-card-value">${formatCurrency(grandTotalBuyIn)}</div>
+            <div class="summary-card-subtitle">Cash in: ${formatCurrency(totalCashIn)} + IOHost: ${formatCurrency(totalIOHost)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-card-label">Total Money Out</div>
             <div class="summary-card-value">${formatCurrency(grandTotalCashOut)}</div>
+            <div class="summary-card-subtitle">Cash out: ${formatCurrency(totalCashOut)} + IOPlayer: ${formatCurrency(totalIOPlayer)}</div>
           </div>
           <div class="summary-card">
             <div class="summary-card-label">Discrepancy</div>
