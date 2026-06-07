@@ -1037,7 +1037,7 @@
       const firstEvent = session.events.find(e => e.type !== 'edit');
       if (!firstEvent) return 'New session';
       const d = new Date(firstEvent.timestamp);
-      return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
     function SessionsTab({ sessions, activeSessionId, updateStore, setActiveTab }) {
@@ -1113,6 +1113,16 @@
     function App() {
       const [activeTab, setActiveTab] = useState('list');
       const [store, setStore] = useState(() => loadStore());
+
+      useEffect(() => {
+        function onStorage(e) {
+          if (e.key === STORAGE_KEY && e.newValue) {
+            setStore(JSON.parse(e.newValue));
+          }
+        }
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+      }, []);
 
       function updateStore(patch) {
         const updated = { ...store, ...patch };
