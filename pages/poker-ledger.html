@@ -511,6 +511,7 @@
     import { useState, useEffect, useMemo } from 'https://esm.sh/preact@10.19.3/hooks';
     import { createPortal } from 'https://esm.sh/preact@10.19.3/compat';
     import htm from 'https://esm.sh/htm@3.1.1';
+    import { EVENT_TYPES, formatCurrency, formatTime, getPlayerSummary, getResults, getResultsTotals, getIOUData, getIOUTotals, getIOULabel, getMainEvents } from './poker-ledger-logic.js';
 
     const html = htm.bind(h);
 
@@ -521,14 +522,6 @@
       AMOUNTS_IN: 'ledger_amounts_in',
       AMOUNTS_OUT: 'ledger_amounts_out',
       IOU_PAID: 'ledger_iou_paid'
-    };
-
-    const EVENT_TYPES = {
-      'buy-in-cash': 'Cash in',
-      'buy-in-iou': 'IOHost',
-      'cash-out-cash': 'Cash out',
-      'cash-out-iou': 'IOPlayer',
-      'edit': 'Edit'
     };
 
     const AMOUNT_KEY_MAP = {
@@ -570,14 +563,6 @@
       localStorage.setItem(key, JSON.stringify(data));
     }
 
-    function formatCurrency(amount) {
-      const num = parseFloat(amount);
-      return '$' + (num % 1 === 0 ? num.toFixed(0) : num.toFixed(2));
-    }
-
-    function formatTime(timestamp) {
-      return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
 
     function getTopItems(obj, limit = 8) {
       return Object.entries(obj)
@@ -869,7 +854,7 @@
         }
         setShowAddModal(true);
       }
-      const mainEvents = useMemo(() => events.filter(e => e.type !== 'edit'), [events]);
+      const mainEvents = useMemo(() => getMainEvents(events), [events]);
       const editsByParent = useMemo(() => {
         const map = {};
         events.filter(e => e.type === 'edit').forEach(e => {
@@ -916,44 +901,8 @@
     }
 
     function ResultsTab({ events }) {
-      const summary = useMemo(() => {
-        const s = {};
-        events.forEach(ev => {
-          if (ev.type === 'edit') return;
-          if (!s[ev.username]) s[ev.username] = { buyInCash: 0, buyInIou: 0, cashOutCash: 0, cashOutIou: 0 };
-          if (ev.type === 'buy-in-cash') s[ev.username].buyInCash += ev.amount;
-          else if (ev.type === 'buy-in-iou') s[ev.username].buyInIou += ev.amount;
-          else if (ev.type === 'cash-out-cash') s[ev.username].cashOutCash += ev.amount;
-          else if (ev.type === 'cash-out-iou') s[ev.username].cashOutIou += ev.amount;
-        });
-        return s;
-      }, [events]);
-
-      const results = useMemo(() => {
-        return Object.entries(summary).map(([player, s]) => {
-          const totalBuyIn = s.buyInCash + s.buyInIou;
-          const totalCashOut = s.cashOutCash + s.cashOutIou;
-          const net = totalCashOut - totalBuyIn;
-          return { player, totalBuyIn, totalCashOut, net, ...s };
-        }).filter(r => r.totalBuyIn > 0 || r.totalCashOut > 0)
-          .sort((a, b) => b.net - a.net);
-      }, [summary]);
-
-      const grandTotalCashOut = results.reduce((sum, r) => sum + r.totalCashOut, 0);
-      const grandTotalBuyIn = results.reduce((sum, r) => sum + r.totalBuyIn, 0);
-      const totalCashIn = results.reduce((sum, r) => sum + r.buyInCash, 0);
-      const totalIOHost = results.reduce((sum, r) => sum + r.buyInIou, 0);
-      const totalCashOut = results.reduce((sum, r) => sum + r.cashOutCash, 0);
-      const totalIOPlayer = results.reduce((sum, r) => sum + r.cashOutIou, 0);
-      const hostEarnings = grandTotalBuyIn - grandTotalCashOut;
-
-
-
-      const discrepancyClass = hostEarnings > 0 ? 'positive' : (hostEarnings < 0 ? 'negative' : 'neutral');
-      const discrepancyDisplay = hostEarnings >= 0 ? '+' + formatCurrency(hostEarnings) : formatCurrency(hostEarnings);
-      const discrepancySubtitle = hostEarnings > 0 ? 'Host earns ' + formatCurrency(hostEarnings)
-        : hostEarnings < 0 ? 'Host loses ' + formatCurrency(Math.abs(hostEarnings))
-        : 'No discrepancy between money in and out';
+      const results = useMemo(() => getResults(events), [events]);
+      const { grandTotalBuyIn, grandTotalCashOut, totalCashIn, totalIOHost, totalCashOut, totalIOPlayer, hostEarnings, moneyOnTable, discrepancyClass, discrepancyDisplay, discrepancySubtitle } = useMemo(() => getResultsTotals(results), [results]);
 
       if (results.length === 0) {
         return html`
@@ -988,7 +937,7 @@
           </div>
           <div class="summary-card">
             <div class="summary-card-label">Money on Table</div>
-            <div class="summary-card-value">${formatCurrency(grandTotalBuyIn - grandTotalCashOut)}</div>
+            <div class="summary-card-value">${formatCurrency(moneyOnTable)}</div>
           </div>
           <div class="summary-card">
             <div class="summary-card-label">Discrepancy</div>
@@ -1032,18 +981,7 @@
         return all[sessionId] || {};
       });
 
-      const iouData = useMemo(() => {
-        const s = {};
-        events.forEach(ev => {
-          if (ev.type === 'edit') return;
-          if (!s[ev.username]) s[ev.username] = { buyInIou: 0, cashOutIou: 0 };
-          if (ev.type === 'buy-in-iou') s[ev.username].buyInIou += ev.amount;
-          else if (ev.type === 'cash-out-iou') s[ev.username].cashOutIou += ev.amount;
-        });
-        return Object.entries(s)
-          .map(([player, d]) => ({ player, owesHost: d.buyInIou, hostOwes: d.cashOutIou, netIou: d.buyInIou - d.cashOutIou }))
-          .filter(d => d.owesHost > 0 || d.hostOwes > 0);
-      }, [events]);
+      const iouData = useMemo(() => getIOUData(events), [events]);
 
       function updatePaid(player, value) {
         const val = parseFloat(value) || 0;
@@ -1063,8 +1001,7 @@
         `;
       }
 
-      const totalOwedToHost = iouData.reduce((sum, d) => sum + Math.max(0, d.netIou), 0);
-      const totalHostOwes = iouData.reduce((sum, d) => sum + Math.max(0, -d.netIou), 0);
+      const { totalOwedToHost, totalHostOwes } = getIOUTotals(iouData);
 
       return html`
         <div class="summary-cards" style="margin-bottom:1rem;">
@@ -1079,9 +1016,7 @@
         </div>
         ${iouData.map(d => {
           const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
-          const label = d.netIou > 0 ? d.player + ' owes host ' + formatCurrency(d.netIou)
-            : d.netIou < 0 ? 'Host owes ' + d.player + ' ' + formatCurrency(Math.abs(d.netIou))
-            : d.player + ' — Settled';
+          const label = getIOULabel(d);
           const paid = paidAmounts[d.player] || '';
           const paidNum = parseFloat(paid) || 0;
           const isSettled = paidNum > 0 && paidNum >= Math.abs(d.netIou);
