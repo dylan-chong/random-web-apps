@@ -979,12 +979,12 @@
           <div class="summary-card">
             <div class="summary-card-label">Total Money In</div>
             <div class="summary-card-value">${formatCurrency(grandTotalBuyIn)}</div>
-            <div class="summary-card-subtitle">Cash in: ${formatCurrency(totalCashIn)} + IOHost: ${formatCurrency(totalIOHost)}</div>
+            <div class="summary-card-subtitle">Cash in: ${formatCurrency(totalCashIn)}<br/>IOHost: ${formatCurrency(totalIOHost)}</div>
           </div>
           <div class="summary-card">
             <div class="summary-card-label">Total Money Out</div>
             <div class="summary-card-value">${formatCurrency(grandTotalCashOut)}</div>
-            <div class="summary-card-subtitle">Cash out: ${formatCurrency(totalCashOut)} + IOPlayer: ${formatCurrency(totalIOPlayer)}</div>
+            <div class="summary-card-subtitle">Cash out: ${formatCurrency(totalCashOut)}<br/>IOPlayer: ${formatCurrency(totalIOPlayer)}</div>
           </div>
           <div class="summary-card">
             <div class="summary-card-label">Money on Table</div>
@@ -1010,11 +1010,11 @@
                     <td>${r.player}</td>
                     <td>
                       ${formatCurrency(r.totalBuyIn)}
-                      ${r.buyInIou > 0 && html`<span class="breakdown">${formatCurrency(r.buyInCash)} cash + ${formatCurrency(r.buyInIou)} IOHost</span>`}
+                      ${r.buyInIou > 0 && html`<span class="breakdown">${formatCurrency(r.buyInCash)} cash<br/>${formatCurrency(r.buyInIou)} IOHost</span>`}
                     </td>
                     <td>
                       ${formatCurrency(r.totalCashOut)}
-                      ${r.cashOutIou > 0 && html`<span class="breakdown">${formatCurrency(r.cashOutCash)} cash + ${formatCurrency(r.cashOutIou)} IOPlayer</span>`}
+                      ${r.cashOutIou > 0 && html`<span class="breakdown">${formatCurrency(r.cashOutCash)} cash<br/>${formatCurrency(r.cashOutIou)} IOPlayer</span>`}
                     </td>
                     <td class=${netClass}>${netDisplay}</td>
                   </tr>
