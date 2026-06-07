@@ -936,13 +936,13 @@
             <div class="summary-card-subtitle">Cash out: ${formatCurrency(totalCashOut)}<br/>IOPlayer: ${formatCurrency(totalIOPlayer)}</div>
           </div>
           <div class="summary-card">
-            <div class="summary-card-label">Money on Table</div>
-            <div class="summary-card-value">${formatCurrency(moneyOnTable)}</div>
-          </div>
-          <div class="summary-card">
             <div class="summary-card-label">Discrepancy</div>
             <div class="summary-card-value ${discrepancyClass}">${discrepancyDisplay}</div>
             ${discrepancySubtitle && html`<div class="summary-card-subtitle">${discrepancySubtitle}</div>`}
+          </div>
+          <div class="summary-card">
+            <div class="summary-card-label">Money on Table</div>
+            <div class="summary-card-value">${formatCurrency(moneyOnTable)}</div>
           </div>
         </div>
         <div class="table-container">
