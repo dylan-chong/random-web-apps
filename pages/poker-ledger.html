@@ -961,7 +961,8 @@
       const discrepancyClass = hostEarnings > 0 ? 'positive' : (hostEarnings < 0 ? 'negative' : 'neutral');
       const discrepancyDisplay = hostEarnings >= 0 ? '+' + formatCurrency(hostEarnings) : formatCurrency(hostEarnings);
       const discrepancySubtitle = hostEarnings > 0 ? 'Host earns ' + formatCurrency(hostEarnings)
-        : hostEarnings < 0 ? 'Host loses ' + formatCurrency(Math.abs(hostEarnings)) : '';
+        : hostEarnings < 0 ? 'Host loses ' + formatCurrency(Math.abs(hostEarnings))
+        : 'No discrepancy between money in and out';
 
       if (results.length === 0) {
         return html`
