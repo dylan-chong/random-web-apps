@@ -886,7 +886,7 @@
             </div>
           </div>
           <div>
-            ${mainEvents.map(ev => html`
+            ${[...mainEvents].reverse().map(ev => html`
               <${EventItem} key=${ev.id} ev=${ev}
                 edits=${editsByParent[ev.id] || []}
                 events=${events} setEvents=${setEvents} />
@@ -1063,7 +1063,7 @@
       return html`
         <button class="btn-primary" onClick=${createSession}>+ New Session</button>
         <div style="margin-top:1rem;">
-          ${sessions.map(s => html`
+          ${[...sessions].reverse().map(s => html`
             <${SessionItem} key=${s.id} session=${s} isActive=${s.id === activeSessionId}
               canDelete=${sessions.length > 1}
               onOpen=${() => openSession(s.id)}
