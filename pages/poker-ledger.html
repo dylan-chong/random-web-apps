@@ -942,8 +942,6 @@
       const grandTotalBuyIn = results.reduce((sum, r) => sum + r.totalBuyIn, 0);
       const hostEarnings = grandTotalBuyIn - grandTotalCashOut;
 
-      const winner = results.length > 0 && results[0].net > 0 ? results[0] : null;
-      const loser = results.length > 0 && results[results.length - 1].net < 0 ? results[results.length - 1] : null;
 
       const iouData = useMemo(() => {
         return Object.entries(summary)
@@ -990,14 +988,6 @@
             <div class="summary-card-label">Discrepancy</div>
             <div class="summary-card-value ${discrepancyClass}">${discrepancyDisplay}</div>
             ${discrepancySubtitle && html`<div class="summary-card-subtitle">${discrepancySubtitle}</div>`}
-          </div>
-          <div class="summary-card">
-            <div class="summary-card-label">Biggest Winner</div>
-            <div class="summary-card-value positive">${winner ? winner.player + ' (+' + formatCurrency(winner.net) + ')' : '-'}</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-card-label">Biggest Loser</div>
-            <div class="summary-card-value negative">${loser ? loser.player + ' (' + formatCurrency(loser.net) + ')' : '-'}</div>
           </div>
         </div>
         <div class="table-container">
