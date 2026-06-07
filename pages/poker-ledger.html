@@ -614,7 +614,7 @@
       `;
     }
 
-    function AddEventModal({ events, setEvents, onClose }) {
+    function AddEventModal({ events, setEvents, sessions, activeSessionId, onClose }) {
       const [username, setUsername] = useState('');
       const [eventType, setEventType] = useState('buy-in-cash');
       const [amount, setAmount] = useState('');
@@ -623,7 +623,12 @@
       const inTypes = ['buy-in-cash', 'buy-in-iou'];
       const outTypes = ['cash-out-cash', 'cash-out-iou'];
       const amountTypes = inTypes.includes(eventType) ? inTypes : outTypes;
-      const topUsernames = useMemo(() => getAutocompleteUsernames(events), [events]);
+      const usernameEvents = useMemo(() => {
+        const idx = sessions.findIndex(s => s.id === activeSessionId);
+        const relevantSessions = sessions.slice(Math.max(0, idx - 2), idx + 1);
+        return relevantSessions.flatMap(s => s.events);
+      }, [sessions, activeSessionId]);
+      const topUsernames = useMemo(() => getAutocompleteUsernames(usernameEvents), [usernameEvents]);
       const topAmounts = useMemo(() => getAutocompleteAmounts(events, amountTypes).map(a => formatCurrency(a)), [events, eventType]);
 
       function handleSubmit(e) {
@@ -832,7 +837,7 @@
       `;
     }
 
-    function EventListTab({ events, setEvents, onNewSession }) {
+    function EventListTab({ events, setEvents, onNewSession, sessions, activeSessionId }) {
       const [showAddModal, setShowAddModal] = useState(false);
 
       function handleAddClick() {
@@ -890,6 +895,7 @@
         `}
         ${showAddModal && html`
           <${AddEventModal} events=${events} setEvents=${setEvents}
+            sessions=${sessions} activeSessionId=${activeSessionId}
             onClose=${() => setShowAddModal(false)} />
         `}
       `;
@@ -1138,7 +1144,7 @@
         </header>
         <${TabBar} activeTab=${activeTab} setActiveTab=${setActiveTab} />
         <div class="tab-content">
-          ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} onNewSession=${createNewSession} />`}
+          ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} onNewSession=${createNewSession} sessions=${sessions} activeSessionId=${activeSessionId} />`}
           ${activeTab === 'results' && html`<${ResultsTab} events=${events} />`}
           ${activeTab === 'ious' && html`<${IOUsTab} events=${events} iousPaid=${activeSession ? activeSession.iousPaid || [] : []} setIousPaid=${setIousPaid} />`}
           ${activeTab === 'sessions' && html`<${SessionsTab} sessions=${sessions}
