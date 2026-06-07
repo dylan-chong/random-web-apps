@@ -670,7 +670,7 @@
 
       return html`
         <${Portal}>
-          <div class="modal-backdrop" onClick=${onClose}>
+          <div class="modal-backdrop">
             <div class="modal" onClick=${e => e.stopPropagation()}>
               <h3>Cash in / out</h3>
               <form onSubmit=${handleSubmit}>
@@ -752,7 +752,7 @@
 
       return html`
         <${Portal}>
-          <div class="modal-backdrop" onClick=${onClose}>
+          <div class="modal-backdrop">
             <div class="modal" onClick=${e => e.stopPropagation()}>
               <h3>Edit Event</h3>
               <div class="form-group">
