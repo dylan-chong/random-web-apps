@@ -592,7 +592,7 @@
       const tabs = [
         { id: 'list', label: 'Events' },
         { id: 'results', label: 'Results' },
-        { id: 'ious', label: 'IOHost/Player' },
+        { id: 'ious', label: 'IOUs' },
         { id: 'sessions', label: 'Sessions' }
       ];
       return html`
@@ -1058,12 +1058,25 @@
         return html`
           <div class="empty-state">
             <div class="empty-state-icon">📋</div>
-            <p>No IOHost/IOPlayer events in this session</p>
+            <p>No IOUs in this session</p>
           </div>
         `;
       }
 
+      const totalOwedToHost = iouData.reduce((sum, d) => sum + Math.max(0, d.netIou), 0);
+      const totalHostOwes = iouData.reduce((sum, d) => sum + Math.max(0, -d.netIou), 0);
+
       return html`
+        <div class="summary-cards" style="margin-bottom:1rem;">
+          <div class="summary-card">
+            <div class="summary-card-label">Owed to Host</div>
+            <div class="summary-card-value">${formatCurrency(totalOwedToHost)}</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-card-label">Host Owes</div>
+            <div class="summary-card-value">${formatCurrency(totalHostOwes)}</div>
+          </div>
+        </div>
         ${iouData.map(d => {
           const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
           const label = d.netIou > 0 ? d.player + ' owes host ' + formatCurrency(d.netIou)
