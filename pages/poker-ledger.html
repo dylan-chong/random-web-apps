@@ -1057,9 +1057,11 @@
               : d.netIou < 0 ? 'Host owes ' + d.player + ' ' + formatCurrency(Math.abs(d.netIou))
               : d.player + ' — Settled';
             const paid = paidAmounts[d.player] || '';
+            const paidNum = parseFloat(paid) || 0;
+            const isSettled = paidNum > 0 && paidNum >= Math.abs(d.netIou);
             return html`
               <div style="padding:0.6rem 0;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                <span class=${netClass} style="flex:1;min-width:0;">${label}</span>
+                <span class=${netClass} style="flex:1;min-width:0;${isSettled ? 'opacity:0.4;' : ''}">${label}</span>
                 <div style="display:flex;align-items:center;gap:0.3rem;">
                   <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
                   <input type="number" class="edit-input" style="width:60px;" placeholder="0"
