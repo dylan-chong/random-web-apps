@@ -1076,6 +1076,16 @@
     function SessionItem({ session, isActive, canDelete, onOpen, onDelete }) {
       const [showPopover, setShowPopover] = useState(false);
 
+      const hasUnresolvedIOUs = useMemo(() => {
+        const iouData = getIOUData(session.events);
+        const paid = session.iousPaid || [];
+        return iouData.some(d => {
+          const p = paid.find(x => x.player === d.player);
+          const paidAmt = p ? p.amount : 0;
+          return paidAmt < Math.abs(d.netIou);
+        });
+      }, [session]);
+
       return html`
         <div style="padding:0.75rem;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;position:relative;">
           <span style="flex:1;">
@@ -1084,6 +1094,7 @@
             </span>
             <span style="font-size:0.7rem;color:var(--fg-dim);margin-left:0.5rem;">${session.events.length} events</span>
             ${isActive && html`<span style="font-size:0.65rem;color:var(--accent);margin-left:0.5rem;">● active</span>`}
+            ${hasUnresolvedIOUs && html`<span style="font-size:0.65rem;color:var(--danger);margin-left:0.5rem;">● IOUs pending</span>`}
           </span>
           <button class="dots-btn" onClick=${() => setShowPopover(!showPopover)}>⋮</button>
           ${showPopover && html`
