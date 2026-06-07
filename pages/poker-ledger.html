@@ -592,6 +592,7 @@
       const tabs = [
         { id: 'list', label: 'Events' },
         { id: 'results', label: 'Results' },
+        { id: 'ious', label: 'IOUs' },
         { id: 'sessions', label: 'Sessions' }
       ];
       return html`
@@ -914,7 +915,7 @@
       `;
     }
 
-    function ResultsTab({ events, sessionId }) {
+    function ResultsTab({ events }) {
       const summary = useMemo(() => {
         const s = {};
         events.forEach(ev => {
@@ -947,16 +948,6 @@
       const hostEarnings = grandTotalBuyIn - grandTotalCashOut;
 
 
-      const iouData = useMemo(() => {
-        return Object.entries(summary)
-          .map(([player, s]) => ({
-            player,
-            owesHost: s.buyInIou,
-            hostOwes: s.cashOutIou,
-            netIou: s.buyInIou - s.cashOutIou
-          }))
-          .filter(d => d.owesHost > 0 || d.hostOwes > 0);
-      }, [summary]);
 
       const discrepancyClass = hostEarnings > 0 ? 'positive' : (hostEarnings < 0 ? 'negative' : 'neutral');
       const discrepancyDisplay = hostEarnings >= 0 ? '+' + formatCurrency(hostEarnings) : formatCurrency(hostEarnings);
@@ -1032,17 +1023,27 @@
             </tbody>
           </table>
         </div>
-        ${iouData.length > 0 && html`
-          <${IOUList} iouData=${iouData} sessionId=${sessionId} />
-        `}
       `;
     }
 
-    function IOUList({ iouData, sessionId }) {
+    function IOUsTab({ events, sessionId }) {
       const [paidAmounts, setPaidAmounts] = useState(() => {
         const all = getData(STORAGE_KEYS.IOU_PAID);
         return all[sessionId] || {};
       });
+
+      const iouData = useMemo(() => {
+        const s = {};
+        events.forEach(ev => {
+          if (ev.type === 'edit') return;
+          if (!s[ev.username]) s[ev.username] = { buyInIou: 0, cashOutIou: 0 };
+          if (ev.type === 'buy-in-iou') s[ev.username].buyInIou += ev.amount;
+          else if (ev.type === 'cash-out-iou') s[ev.username].cashOutIou += ev.amount;
+        });
+        return Object.entries(s)
+          .map(([player, d]) => ({ player, owesHost: d.buyInIou, hostOwes: d.cashOutIou, netIou: d.buyInIou - d.cashOutIou }))
+          .filter(d => d.owesHost > 0 || d.hostOwes > 0);
+      }, [events]);
 
       function updatePaid(player, value) {
         const val = parseFloat(value) || 0;
@@ -1053,29 +1054,35 @@
         setData(STORAGE_KEYS.IOU_PAID, all);
       }
 
+      if (iouData.length === 0) {
+        return html`
+          <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <p>No IOUs in this session</p>
+          </div>
+        `;
+      }
+
       return html`
-        <div style="margin-top:1.5rem;">
-          <h3 style="color:var(--accent-light);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.75rem;">Outstanding IOUs</h3>
-          ${iouData.map(d => {
-            const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
-            const label = d.netIou > 0 ? d.player + ' owes host ' + formatCurrency(d.netIou)
-              : d.netIou < 0 ? 'Host owes ' + d.player + ' ' + formatCurrency(Math.abs(d.netIou))
-              : d.player + ' — Settled';
-            const paid = paidAmounts[d.player] || '';
-            const paidNum = parseFloat(paid) || 0;
-            const isSettled = paidNum > 0 && paidNum >= Math.abs(d.netIou);
-            return html`
-              <div style="padding:0.6rem 0;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
-                <span class=${netClass} style="flex:1;min-width:0;font-weight:normal;font-size:0.85rem;${isSettled ? 'opacity:0.4;' : ''}">${label}</span>
-                <div style="display:flex;align-items:center;gap:0.3rem;">
-                  <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
-                  <input type="number" class="edit-input" style="width:60px;" placeholder="0"
-                    value=${paid} onInput=${e => updatePaid(d.player, e.target.value)} />
-                </div>
+        ${iouData.map(d => {
+          const netClass = d.netIou > 0 ? 'negative' : (d.netIou < 0 ? 'positive' : 'neutral');
+          const label = d.netIou > 0 ? d.player + ' owes host ' + formatCurrency(d.netIou)
+            : d.netIou < 0 ? 'Host owes ' + d.player + ' ' + formatCurrency(Math.abs(d.netIou))
+            : d.player + ' — Settled';
+          const paid = paidAmounts[d.player] || '';
+          const paidNum = parseFloat(paid) || 0;
+          const isSettled = paidNum > 0 && paidNum >= Math.abs(d.netIou);
+          return html`
+            <div style="padding:0.75rem 0;border-bottom:1px solid var(--bg-highlight);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
+              <span class=${netClass} style="flex:1;min-width:0;font-weight:normal;font-size:0.85rem;${isSettled ? 'opacity:0.4;' : ''}">${label}</span>
+              <div style="display:flex;align-items:center;gap:0.3rem;">
+                <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
+                <input type="number" class="edit-input" style="width:60px;" placeholder="0"
+                  value=${paid} onInput=${e => updatePaid(d.player, e.target.value)} />
               </div>
-            `;
-          })}
-        </div>
+            </div>
+          `;
+        })}
       `;
     }
 
@@ -1191,7 +1198,8 @@
         <${TabBar} activeTab=${activeTab} setActiveTab=${setActiveTab} />
         <div class="tab-content">
           ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} onNewSession=${createNewSession} />`}
-          ${activeTab === 'results' && html`<${ResultsTab} events=${events} sessionId=${activeSessionId} />`}
+          ${activeTab === 'results' && html`<${ResultsTab} events=${events} />`}
+          ${activeTab === 'ious' && html`<${IOUsTab} events=${events} sessionId=${activeSessionId} />`}
           ${activeTab === 'sessions' && html`<${SessionsTab} sessions=${sessions} setSessions=${setSessions}
             activeSessionId=${activeSessionId} setActiveSessionId=${setActiveSessionId}
             setActiveTab=${setActiveTab} />`}
