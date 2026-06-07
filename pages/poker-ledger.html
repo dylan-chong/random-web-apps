@@ -592,7 +592,7 @@
       const tabs = [
         { id: 'list', label: 'Events' },
         { id: 'results', label: 'Results' },
-        { id: 'ious', label: 'IOUs' },
+        { id: 'ious', label: 'IOHost/Player' },
         { id: 'sessions', label: 'Sessions' }
       ];
       return html`
@@ -1010,11 +1010,11 @@
                     <td>${r.player}</td>
                     <td>
                       ${formatCurrency(r.totalBuyIn)}
-                      ${r.buyInIou > 0 && html`<span class="breakdown">${formatCurrency(r.buyInCash)} cash + ${formatCurrency(r.buyInIou)} IOU</span>`}
+                      ${r.buyInIou > 0 && html`<span class="breakdown">${formatCurrency(r.buyInCash)} cash + ${formatCurrency(r.buyInIou)} IOHost</span>`}
                     </td>
                     <td>
                       ${formatCurrency(r.totalCashOut)}
-                      ${r.cashOutIou > 0 && html`<span class="breakdown">${formatCurrency(r.cashOutCash)} cash + ${formatCurrency(r.cashOutIou)} IOU</span>`}
+                      ${r.cashOutIou > 0 && html`<span class="breakdown">${formatCurrency(r.cashOutCash)} cash + ${formatCurrency(r.cashOutIou)} IOPlayer</span>`}
                     </td>
                     <td class=${netClass}>${netDisplay}</td>
                   </tr>
@@ -1058,7 +1058,7 @@
         return html`
           <div class="empty-state">
             <div class="empty-state-icon">📋</div>
-            <p>No IOUs in this session</p>
+            <p>No IOHost/IOPlayer events in this session</p>
           </div>
         `;
       }
