@@ -8,7 +8,9 @@ import {
   getIOUData,
   getIOUTotals,
   getIOULabel,
-  getMainEvents
+  getMainEvents,
+  getAutocompleteUsernames,
+  getAutocompleteAmounts
 } from '../pages/poker-ledger-logic.js';
 
 const events = [
@@ -151,5 +153,40 @@ describe('formatCurrency', () => {
 
   it('fractional amounts show 2 decimals', () => {
     expect(formatCurrency(50.5)).toBe('$50.50');
+  });
+});
+
+describe('Autocomplete', () => {
+  it('getAutocompleteUsernames returns players sorted by frequency', () => {
+    const result = getAutocompleteUsernames(events);
+    expect(result).toContain('Alice');
+    expect(result).toContain('Bob');
+    expect(result).toHaveLength(2);
+  });
+
+  it('getAutocompleteAmounts for buy-in types returns in-direction amounts', () => {
+    const result = getAutocompleteAmounts(events, ['buy-in-cash', 'buy-in-iou']);
+    expect(result).toContain(100);
+    expect(result).toContain(25);
+    expect(result).toContain(80);
+    expect(result).toContain(15);
+    expect(result).not.toContain(90);
+    expect(result).not.toContain(60);
+  });
+
+  it('getAutocompleteAmounts for cash-out types returns out-direction amounts', () => {
+    const result = getAutocompleteAmounts(events, ['cash-out-cash', 'cash-out-iou']);
+    expect(result).toContain(90);
+    expect(result).toContain(20);
+    expect(result).toContain(60);
+    expect(result).toContain(10);
+    expect(result).not.toContain(100);
+    expect(result).not.toContain(25);
+  });
+
+  it('excludes edit events from autocomplete', () => {
+    const eventsWithEdit = [...events, { id: 99, username: 'Ghost', type: 'edit', amount: 999, timestamp: 9000 }];
+    const usernames = getAutocompleteUsernames(eventsWithEdit);
+    expect(usernames).not.toContain('Ghost');
   });
 });

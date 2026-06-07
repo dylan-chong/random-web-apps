@@ -91,3 +91,27 @@ export function getIOULabel(d) {
 export function getMainEvents(events) {
   return events.filter(e => e.type !== 'edit');
 }
+
+export function getAutocompleteUsernames(events) {
+  const freq = {};
+  events.forEach(ev => {
+    if (ev.type === 'edit') return;
+    freq[ev.username] = (freq[ev.username] || 0) + 1;
+  });
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([name]) => name);
+}
+
+export function getAutocompleteAmounts(events, types) {
+  const freq = {};
+  events.forEach(ev => {
+    if (!types.includes(ev.type)) return;
+    freq[ev.amount] = (freq[ev.amount] || 0) + 1;
+  });
+  return Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([amount]) => parseFloat(amount));
+}

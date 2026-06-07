@@ -511,64 +511,72 @@
     import { useState, useEffect, useMemo } from 'https://esm.sh/preact@10.19.3/hooks';
     import { createPortal } from 'https://esm.sh/preact@10.19.3/compat';
     import htm from 'https://esm.sh/htm@3.1.1';
-    import { EVENT_TYPES, formatCurrency, formatTime, getPlayerSummary, getResults, getResultsTotals, getIOUData, getIOUTotals, getIOULabel, getMainEvents } from './poker-ledger-logic.js';
+    import { EVENT_TYPES, formatCurrency, formatTime, getPlayerSummary, getResults, getResultsTotals, getIOUData, getIOUTotals, getIOULabel, getMainEvents, getAutocompleteUsernames, getAutocompleteAmounts } from './poker-ledger-logic.js';
 
     const html = htm.bind(h);
 
-    const STORAGE_KEYS = {
-      SESSIONS: 'ledger_sessions',
-      ACTIVE_SESSION: 'ledger_active_session',
-      USERNAMES: 'ledger_usernames',
-      AMOUNTS_IN: 'ledger_amounts_in',
-      AMOUNTS_OUT: 'ledger_amounts_out',
-      IOU_PAID: 'ledger_iou_paid'
-    };
+    const STORAGE_KEY = 'ledger_sessions';
 
-    const AMOUNT_KEY_MAP = {
-      'buy-in-cash': STORAGE_KEYS.AMOUNTS_IN,
-      'buy-in-iou': STORAGE_KEYS.AMOUNTS_IN,
-      'cash-out-cash': STORAGE_KEYS.AMOUNTS_OUT,
-      'cash-out-iou': STORAGE_KEYS.AMOUNTS_OUT
-    };
-
-    function getData(key) {
-      const data = localStorage.getItem(key);
-      if (!data) {
-        if (key === STORAGE_KEYS.SESSIONS) return [];
-        return {};
+    function loadStore() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.sessions) return parsed;
+        if (Array.isArray(parsed)) {
+          return migrate(parsed);
+        }
       }
-      return JSON.parse(data);
+      return migrateFromLegacy();
     }
 
-    function getSessions() {
-      let sessions = getData(STORAGE_KEYS.SESSIONS);
-      if (!Array.isArray(sessions) || sessions.length === 0) {
-        const legacyEvents = localStorage.getItem('ledger_events');
-        const events = legacyEvents ? JSON.parse(legacyEvents) : [];
-        sessions = [{ id: Date.now(), events }];
-        setData(STORAGE_KEYS.SESSIONS, sessions);
-        setData(STORAGE_KEYS.ACTIVE_SESSION, sessions[0].id);
-      }
-      return sessions;
+    function migrate(oldSessions) {
+      const activeId = JSON.parse(localStorage.getItem('ledger_active_session') || 'null');
+      const iouPaid = JSON.parse(localStorage.getItem('ledger_iou_paid') || '{}');
+      const sessions = oldSessions.map(s => ({
+        id: s.id,
+        events: s.events || [],
+        iousPaid: convertIouPaid(iouPaid[s.id] || {}, s.events || [])
+      }));
+      const store = { activeSessionId: activeId || sessions[0]?.id || Date.now(), sessions };
+      saveStore(store);
+      localStorage.removeItem('ledger_active_session');
+      localStorage.removeItem('ledger_usernames');
+      localStorage.removeItem('ledger_amounts_in');
+      localStorage.removeItem('ledger_amounts_out');
+      localStorage.removeItem('ledger_iou_paid');
+      localStorage.removeItem('ledger_events');
+      return store;
     }
 
-    function getActiveSessionId() {
-      const id = localStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
-      if (id) return JSON.parse(id);
-      const sessions = getSessions();
-      return sessions[0].id;
+    function migrateFromLegacy() {
+      const legacyEvents = JSON.parse(localStorage.getItem('ledger_events') || '[]');
+      const store = {
+        activeSessionId: Date.now(),
+        sessions: [{ id: Date.now(), events: legacyEvents, iousPaid: [] }]
+      };
+      saveStore(store);
+      localStorage.removeItem('ledger_events');
+      localStorage.removeItem('ledger_active_session');
+      localStorage.removeItem('ledger_usernames');
+      localStorage.removeItem('ledger_amounts_in');
+      localStorage.removeItem('ledger_amounts_out');
+      localStorage.removeItem('ledger_iou_paid');
+      return store;
     }
 
-    function setData(key, data) {
-      localStorage.setItem(key, JSON.stringify(data));
+    function convertIouPaid(paidObj, events) {
+      const iouData = getIOUData(events);
+      return Object.entries(paidObj)
+        .filter(([, amt]) => amt > 0)
+        .map(([player, amount]) => {
+          const d = iouData.find(i => i.player === player);
+          const direction = d && d.netIou < 0 ? 'to-player' : 'to-host';
+          return { player, amount, direction };
+        });
     }
 
-
-    function getTopItems(obj, limit = 8) {
-      return Object.entries(obj)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, limit)
-        .map(([key]) => key);
+    function saveStore(store) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
     }
 
     // --- Components ---
@@ -612,10 +620,11 @@
       const [amount, setAmount] = useState('');
       const [notes, setNotes] = useState('');
 
-      const usernames = getData(STORAGE_KEYS.USERNAMES);
-      const amounts = getData(AMOUNT_KEY_MAP[eventType]);
-      const topUsernames = getTopItems(usernames);
-      const topAmounts = getTopItems(amounts).map(a => formatCurrency(a));
+      const inTypes = ['buy-in-cash', 'buy-in-iou'];
+      const outTypes = ['cash-out-cash', 'cash-out-iou'];
+      const amountTypes = inTypes.includes(eventType) ? inTypes : outTypes;
+      const topUsernames = useMemo(() => getAutocompleteUsernames(events), [events]);
+      const topAmounts = useMemo(() => getAutocompleteAmounts(events, amountTypes).map(a => formatCurrency(a)), [events, eventType]);
 
       function handleSubmit(e) {
         e.preventDefault();
@@ -631,19 +640,7 @@
           timestamp: Date.now()
         };
 
-        const updated = [...events, newEvent];
-        setEvents(updated);
-        setData(STORAGE_KEYS.EVENTS, updated);
-
-        const un = getData(STORAGE_KEYS.USERNAMES);
-        un[username.trim()] = (un[username.trim()] || 0) + 1;
-        setData(STORAGE_KEYS.USERNAMES, un);
-
-        const amtKey = AMOUNT_KEY_MAP[eventType];
-        const am = getData(amtKey);
-        am[amt] = (am[amt] || 0) + 1;
-        setData(amtKey, am);
-
+        setEvents([...events, newEvent]);
         onClose();
       }
 
@@ -731,7 +728,6 @@
           );
           updated.push(editEvent);
           setEvents(updated);
-          setData(STORAGE_KEYS.EVENTS, updated);
         }
         onClose();
       }
@@ -798,7 +794,6 @@
         );
         updated.push(editEvent);
         setEvents(updated);
-        setData(STORAGE_KEYS.EVENTS, updated);
       }
 
       return html`
@@ -975,22 +970,20 @@
       `;
     }
 
-    function IOUsTab({ events, sessionId }) {
-      const [paidAmounts, setPaidAmounts] = useState(() => {
-        const all = getData(STORAGE_KEYS.IOU_PAID);
-        return all[sessionId] || {};
-      });
-
+    function IOUsTab({ events, iousPaid, setIousPaid }) {
       const iouData = useMemo(() => getIOUData(events), [events]);
 
       function updatePaid(player, value) {
         const val = parseFloat(value) || 0;
-        const updated = { ...paidAmounts, [player]: val };
-        setPaidAmounts(updated);
-        const all = getData(STORAGE_KEYS.IOU_PAID);
-        all[sessionId] = updated;
-        setData(STORAGE_KEYS.IOU_PAID, all);
+        const d = iouData.find(i => i.player === player);
+        const direction = d && d.netIou < 0 ? 'to-player' : 'to-host';
+        const updated = iousPaid.filter(p => p.player !== player);
+        if (val > 0) updated.push({ player, amount: val, direction });
+        setIousPaid(updated);
       }
+
+      const paidAmounts = {};
+      iousPaid.forEach(p => { paidAmounts[p.player] = p.amount; });
 
       if (iouData.length === 0) {
         return html`
@@ -1041,20 +1034,15 @@
       return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    function SessionsTab({ sessions, setSessions, activeSessionId, setActiveSessionId, setActiveTab }) {
+    function SessionsTab({ sessions, activeSessionId, updateStore, setActiveTab }) {
       function createSession() {
-        const newSession = { id: Date.now(), events: [] };
-        const updated = [...sessions, newSession];
-        setSessions(updated);
-        setData(STORAGE_KEYS.SESSIONS, updated);
-        setActiveSessionId(newSession.id);
-        setData(STORAGE_KEYS.ACTIVE_SESSION, newSession.id);
+        const newSession = { id: Date.now(), events: [], iousPaid: [] };
+        updateStore({ sessions: [...sessions, newSession], activeSessionId: newSession.id });
         setActiveTab('list');
       }
 
       function openSession(id) {
-        setActiveSessionId(id);
-        setData(STORAGE_KEYS.ACTIVE_SESSION, id);
+        updateStore({ activeSessionId: id });
         setActiveTab('list');
       }
 
@@ -1062,12 +1050,8 @@
         if (sessions.length <= 1) return;
         if (!confirm('Delete this session and all its events?')) return;
         const updated = sessions.filter(s => s.id !== id);
-        setSessions(updated);
-        setData(STORAGE_KEYS.SESSIONS, updated);
-        if (activeSessionId === id) {
-          setActiveSessionId(updated[0].id);
-          setData(STORAGE_KEYS.ACTIVE_SESSION, updated[0].id);
-        }
+        const newActive = activeSessionId === id ? updated[0].id : activeSessionId;
+        updateStore({ sessions: updated, activeSessionId: newActive });
       }
 
       return html`
@@ -1111,27 +1095,36 @@
 
     function App() {
       const [activeTab, setActiveTab] = useState('list');
-      const [sessions, setSessions] = useState(() => getSessions());
-      const [activeSessionId, setActiveSessionId] = useState(() => getActiveSessionId());
+      const [store, setStore] = useState(() => loadStore());
 
+      function updateStore(patch) {
+        const updated = { ...store, ...patch };
+        if (patch.sessions) updated.sessions = patch.sessions;
+        setStore(updated);
+        saveStore(updated);
+      }
+
+      const { sessions, activeSessionId } = store;
       const activeSession = sessions.find(s => s.id === activeSessionId) || sessions[0];
       const events = activeSession ? activeSession.events : [];
 
       function setEvents(newEvents) {
-        const updated = sessions.map(s =>
+        const updatedSessions = sessions.map(s =>
           s.id === activeSessionId ? { ...s, events: newEvents } : s
         );
-        setSessions(updated);
-        setData(STORAGE_KEYS.SESSIONS, updated);
+        updateStore({ sessions: updatedSessions });
+      }
+
+      function setIousPaid(newIousPaid) {
+        const updatedSessions = sessions.map(s =>
+          s.id === activeSessionId ? { ...s, iousPaid: newIousPaid } : s
+        );
+        updateStore({ sessions: updatedSessions });
       }
 
       function createNewSession() {
-        const newSession = { id: Date.now(), events: [] };
-        const updated = [...sessions, newSession];
-        setSessions(updated);
-        setData(STORAGE_KEYS.SESSIONS, updated);
-        setActiveSessionId(newSession.id);
-        setData(STORAGE_KEYS.ACTIVE_SESSION, newSession.id);
+        const newSession = { id: Date.now(), events: [], iousPaid: [] };
+        updateStore({ sessions: [...sessions, newSession], activeSessionId: newSession.id });
       }
 
       return html`
@@ -1147,9 +1140,9 @@
         <div class="tab-content">
           ${activeTab === 'list' && html`<${EventListTab} events=${events} setEvents=${setEvents} onNewSession=${createNewSession} />`}
           ${activeTab === 'results' && html`<${ResultsTab} events=${events} />`}
-          ${activeTab === 'ious' && html`<${IOUsTab} events=${events} sessionId=${activeSessionId} />`}
-          ${activeTab === 'sessions' && html`<${SessionsTab} sessions=${sessions} setSessions=${setSessions}
-            activeSessionId=${activeSessionId} setActiveSessionId=${setActiveSessionId}
+          ${activeTab === 'ious' && html`<${IOUsTab} events=${events} iousPaid=${activeSession ? activeSession.iousPaid || [] : []} setIousPaid=${setIousPaid} />`}
+          ${activeTab === 'sessions' && html`<${SessionsTab} sessions=${sessions}
+            activeSessionId=${activeSessionId} updateStore=${updateStore}
             setActiveTab=${setActiveTab} />`}
         </div>
       `;
