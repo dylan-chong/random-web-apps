@@ -978,6 +978,7 @@
 
     function IOUsTab({ events, iousPaid, setIousPaid }) {
       const iouData = useMemo(() => getIOUData(events), [events]);
+      const inputsRef = {};
 
       function updatePaid(player, value) {
         const val = parseFloat(value) || 0;
@@ -987,6 +988,31 @@
         if (val > 0) updated.push({ player, amount: val, direction });
         setIousPaid(updated);
       }
+
+      function saveAllInputs() {
+        let changed = false;
+        const updated = [...iousPaid];
+        Object.entries(inputsRef).forEach(([player, input]) => {
+          if (!input) return;
+          const val = parseFloat(input.value) || 0;
+          const existing = iousPaid.find(p => p.player === player);
+          const existingAmt = existing ? existing.amount : 0;
+          if (val !== existingAmt) {
+            changed = true;
+            const idx = updated.findIndex(p => p.player === player);
+            const d = iouData.find(i => i.player === player);
+            const direction = d && d.netIou < 0 ? 'to-player' : 'to-host';
+            if (idx >= 0) updated.splice(idx, 1);
+            if (val > 0) updated.push({ player, amount: val, direction });
+          }
+        });
+        if (changed) setIousPaid(updated);
+      }
+
+      useEffect(() => {
+        window.addEventListener('beforeunload', saveAllInputs);
+        return () => window.removeEventListener('beforeunload', saveAllInputs);
+      });
 
       const paidAmounts = {};
       iousPaid.forEach(p => { paidAmounts[p.player] = p.amount; });
@@ -1025,7 +1051,8 @@
               <div style="display:flex;align-items:center;gap:0.3rem;">
                 <span style="font-size:0.7rem;color:var(--fg-dim);">Paid:</span>
                 <input type="number" class="edit-input" style="width:90px;" placeholder="0" step="0.01"
-                  defaultValue=${paid} onBlur=${e => updatePaid(d.player, e.target.value)} />
+                  defaultValue=${paid} ref=${el => { inputsRef[d.player] = el; }}
+                  onBlur=${e => updatePaid(d.player, e.target.value)} />
               </div>
             </div>
           `;
