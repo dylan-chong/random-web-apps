@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Meditation Timer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/tokyo-night-moon.css">
+  <style>
+    body { padding: 0; }
+
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+      padding-bottom: 100px;
+    }
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 8px;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .back-link:hover {
+      background: var(--bg-highlight);
+      border-color: var(--accent);
+    }
+
+    header { text-align: center; margin-bottom: 1.5rem; }
+
+    h1 {
+      font-family: 'Inter', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-shadow: 2px 2px 4px var(--shadow), 0 0 30px rgba(130, 170, 255, 0.3);
+      letter-spacing: 0.05em;
+    }
+
+    .subtitle {
+      color: var(--fg-dim);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      margin-top: 0.3rem;
+    }
+
+    .timer-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 12px;
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      position: relative;
+    }
+
+    .timer-card.firing {
+      border-color: var(--accent);
+      box-shadow: 0 0 20px rgba(130, 170, 255, 0.3);
+    }
+
+    .timer-card.completed {
+      opacity: 0.6;
+    }
+
+    .timer-card.disabled {
+      opacity: 0.4;
+    }
+
+    .timer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .timer-label {
+      font-weight: 600;
+      color: var(--fg);
+      font-size: 0.95rem;
+    }
+
+    .timer-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .timer-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .field-group label {
+      font-size: 0.75rem;
+      color: var(--fg-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .field-group input,
+    .field-group select {
+      background: var(--bg);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 6px;
+      padding: 0.5rem 0.6rem;
+      color: var(--fg);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .field-group input:focus,
+    .field-group select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .sound-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+    }
+
+    .sound-row .field-group {
+      flex: 1;
+    }
+
+    .btn-icon {
+      background: var(--bg-highlight);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 6px;
+      color: var(--fg-dim);
+      cursor: pointer;
+      padding: 0.45rem 0.55rem;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-icon:hover {
+      background: var(--bg-surface);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-icon.danger:hover {
+      border-color: var(--negative);
+      color: var(--negative);
+    }
+
+    .btn-add {
+      width: 100%;
+      padding: 0.8rem;
+      background: var(--bg-surface);
+      border: 2px dashed var(--bg-highlight);
+      border-radius: 12px;
+      color: var(--fg-dim);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-bottom: 1.5rem;
+    }
+
+    .btn-add:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--bg-highlight);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      align-items: center;
+      backdrop-filter: blur(10px);
+      z-index: 100;
+    }
+
+    .controls-row {
+      display: flex;
+      gap: 0.8rem;
+      align-items: center;
+    }
+
+    .btn-control {
+      padding: 0.6rem 1.5rem;
+      border-radius: 8px;
+      border: 1px solid var(--bg-highlight);
+      background: var(--bg-highlight);
+      color: var(--fg);
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-control:hover {
+      border-color: var(--accent);
+    }
+
+    .btn-control.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .btn-control.primary:hover {
+      opacity: 0.9;
+    }
+
+    .btn-control:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      color: var(--fg-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .status-text .highlight {
+      color: var(--accent);
+    }
+
+    .timer-progress {
+      margin-top: 0.8rem;
+      font-size: 0.8rem;
+      color: var(--fg-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .timer-progress .next-fire {
+      color: var(--accent);
+    }
+
+    .completed-badge {
+      color: var(--positive);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--bg-highlight);
+      border-radius: 20px;
+      transition: background 0.2s ease;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      left: 3px;
+      bottom: 3px;
+      background: var(--fg-dim);
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--accent);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(16px);
+      background: var(--bg);
+    }
+
+    @media (max-width: 480px) {
+      .timer-fields {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="app"></div>
+
+  <script type="module">
+    import { h, render } from 'https://esm.sh/preact@10.19.3';
+    import { useState, useEffect, useRef, useCallback } from 'https://esm.sh/preact@10.19.3/hooks';
+    import htm from 'https://esm.sh/htm@3.1.1';
+    const html = htm.bind(h);
+
+    const STORAGE_KEY = 'meditation_settings';
+
+    // Base frequency 220Hz (A3), just intonation major scale degrees 1,3,5,7,4,2
+    const BOWL_SOUNDS = {
+      'bowl-1':   { name: 'Root (1st)',      fundamental: 220,       partials: [1, 2.71, 4.8],  decay: 5 },
+      'bowl-3':   { name: 'Third (3rd)',     fundamental: 275,       partials: [1, 2.76, 5.0],  decay: 4.5 },
+      'bowl-5':   { name: 'Fifth (5th)',     fundamental: 330,       partials: [1, 2.8, 4.95],  decay: 4 },
+      'bowl-7':   { name: 'Seventh (7th)',   fundamental: 412.5,     partials: [1, 3.0, 5.4],   decay: 3.5 },
+      'bowl-4':   { name: 'Fourth (4th)',    fundamental: 293.333,   partials: [1, 2.0, 3.6],   decay: 5 },
+      'bowl-2':   { name: 'Second (2nd)',    fundamental: 247.5,     partials: [1, 2.71, 4.2],  decay: 5.5 },
+      'none':     { name: 'No Sound' },
+    };
+
+    let audioCtx = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) audioCtx = new AudioContext();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playBowlSound(soundId) {
+      if (soundId === 'none') return;
+      const preset = BOWL_SOUNDS[soundId];
+      if (!preset) return;
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+
+      for (const ratio of preset.partials) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = preset.fundamental * ratio;
+        gain.gain.setValueAtTime(0.3 / preset.partials.length, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + preset.decay);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + preset.decay);
+      }
+    }
+
+    function playBowlMultiple(soundId, count) {
+      for (let i = 0; i < count; i++) {
+        setTimeout(() => playBowlSound(soundId), i * 800);
+      }
+    }
+
+    function createDefaultTimer() {
+      return {
+        id: crypto.randomUUID(),
+        intervalSeconds: 300,
+        repeatCount: 3,
+        playsPerTrigger: 1,
+        soundId: 'bowl-1',
+        enabled: true,
+      };
+    }
+
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data.timers && data.timers.length > 0) return data;
+        }
+      } catch (e) {}
+      return { timers: [createDefaultTimer()] };
+    }
+
+    function saveSettings(timers) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ timers }));
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = Math.floor(seconds % 60);
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    let wakeLock = null;
+
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => { wakeLock = null; });
+        } catch (e) {}
+      }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) {
+        wakeLock.release();
+        wakeLock = null;
+      }
+    }
+
+    function TimerCard({ timer, index, onUpdate, onDelete, running, timerState }) {
+      const update = (field, value) => onUpdate(timer.id, { ...timer, [field]: value });
+      const isCompleted = timerState && timerState.fireCount >= timer.repeatCount;
+      const isFiring = timerState && timerState.firing;
+
+      let cardClass = 'timer-card';
+      if (isFiring) cardClass += ' firing';
+      if (isCompleted && running) cardClass += ' completed';
+      if (!timer.enabled) cardClass += ' disabled';
+
+      return html`
+        <div class=${cardClass}>
+          <div class="timer-header">
+            <span class="timer-label">Timer ${index + 1}</span>
+            <div class="timer-actions">
+              <label class="toggle-switch">
+                <input type="checkbox" checked=${timer.enabled}
+                  onChange=${(e) => update('enabled', e.target.checked)}
+                  disabled=${running} />
+                <span class="toggle-slider"></span>
+              </label>
+              <button class="btn-icon danger" onClick=${() => onDelete(timer.id)}
+                disabled=${running} title="Delete timer">
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div class="timer-fields">
+            <div class="field-group">
+              <label>Interval (seconds)</label>
+              <input type="number" min="1" step="1"
+                value=${timer.intervalSeconds}
+                onInput=${(e) => update('intervalSeconds', Math.max(1, parseInt(e.target.value) || 1))}
+                disabled=${running} />
+            </div>
+            <div class="field-group">
+              <label>Repeat count</label>
+              <input type="number" min="1" step="1"
+                value=${timer.repeatCount}
+                onInput=${(e) => update('repeatCount', Math.max(1, parseInt(e.target.value) || 1))}
+                disabled=${running} />
+            </div>
+            <div class="field-group">
+              <label>Plays per trigger</label>
+              <input type="number" min="1" max="10" step="1"
+                value=${timer.playsPerTrigger}
+                onInput=${(e) => update('playsPerTrigger', Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                disabled=${running} />
+            </div>
+            <div class="field-group">
+              <label>Sound</label>
+              <div class="sound-row">
+                <select value=${timer.soundId}
+                  onChange=${(e) => update('soundId', e.target.value)}
+                  disabled=${running}>
+                  ${Object.entries(BOWL_SOUNDS).map(([id, s]) => html`
+                    <option value=${id}>${s.name}</option>
+                  `)}
+                </select>
+                <button class="btn-icon" onClick=${() => playBowlSound(timer.soundId)}
+                  title="Preview sound" disabled=${timer.soundId === 'none'}>
+                  ♪
+                </button>
+              </div>
+            </div>
+          </div>
+
+          ${running && timer.enabled && html`
+            <div class="timer-progress">
+              ${isCompleted
+                ? html`<span class="completed-badge">✓ Completed</span>`
+                : html`
+                  <span>Fired: ${timerState ? timerState.fireCount : 0}/${timer.repeatCount}</span>
+                  ${timerState && timerState.secondsUntilNext != null && html`
+                    ${' '}<span class="next-fire">Next in ${formatTime(timerState.secondsUntilNext)}</span>
+                  `}
+                `
+              }
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function App() {
+      const [timers, setTimers] = useState(() => loadSettings().timers);
+      const [running, setRunning] = useState(false);
+      const [paused, setPaused] = useState(false);
+      const [timerStates, setTimerStates] = useState({});
+      const [elapsed, setElapsed] = useState(0);
+
+      const sessionRef = useRef(null);
+      const tickRef = useRef(null);
+
+      useEffect(() => {
+        saveSettings(timers);
+      }, [timers]);
+
+      useEffect(() => {
+        const onVisChange = () => {
+          if (document.visibilityState === 'visible' && running && !paused) {
+            requestWakeLock();
+          }
+        };
+        document.addEventListener('visibilitychange', onVisChange);
+        return () => document.removeEventListener('visibilitychange', onVisChange);
+      }, [running, paused]);
+
+      const updateTimer = useCallback((id, updated) => {
+        setTimers(ts => ts.map(t => t.id === id ? updated : t));
+      }, []);
+
+      const deleteTimer = useCallback((id) => {
+        setTimers(ts => ts.length > 1 ? ts.filter(t => t.id !== id) : ts);
+      }, []);
+
+      const addTimer = useCallback(() => {
+        setTimers(ts => [...ts, createDefaultTimer()]);
+      }, []);
+
+      const startSession = useCallback(() => {
+        const enabledTimers = timers.filter(t => t.enabled);
+        if (enabledTimers.length === 0) return;
+
+        const now = Date.now();
+        const states = {};
+        for (const t of enabledTimers) {
+          states[t.id] = {
+            fireCount: 0,
+            nextFireAt: now + t.intervalSeconds * 1000,
+            firing: false,
+            secondsUntilNext: t.intervalSeconds,
+          };
+        }
+
+        sessionRef.current = { startTime: now, pausedElapsed: 0 };
+        setTimerStates(states);
+        setElapsed(0);
+        setRunning(true);
+        setPaused(false);
+        requestWakeLock();
+
+        tickRef.current = setInterval(() => {
+          const session = sessionRef.current;
+          if (!session || session.isPaused) return;
+
+          const currentTime = Date.now();
+          const totalElapsed = (currentTime - session.startTime - session.pausedElapsed) / 1000;
+          setElapsed(totalElapsed);
+
+          setTimerStates(prev => {
+            const next = { ...prev };
+            let allDone = true;
+
+            for (const t of enabledTimers) {
+              const state = next[t.id];
+              if (!state || state.fireCount >= t.repeatCount) continue;
+              allDone = false;
+
+              if (currentTime >= state.nextFireAt) {
+                playBowlMultiple(t.soundId, t.playsPerTrigger);
+                const newFireCount = state.fireCount + 1;
+                next[t.id] = {
+                  ...state,
+                  fireCount: newFireCount,
+                  nextFireAt: newFireCount < t.repeatCount
+                    ? state.nextFireAt + t.intervalSeconds * 1000
+                    : null,
+                  firing: true,
+                  secondsUntilNext: newFireCount < t.repeatCount ? t.intervalSeconds : null,
+                };
+                setTimeout(() => {
+                  setTimerStates(p => ({
+                    ...p,
+                    [t.id]: { ...p[t.id], firing: false },
+                  }));
+                }, 500);
+              } else {
+                next[t.id] = {
+                  ...state,
+                  secondsUntilNext: Math.max(0, (state.nextFireAt - currentTime) / 1000),
+                };
+              }
+            }
+
+            if (allDone) {
+              const stillRunning = Object.values(next).some(s => s.fireCount < enabledTimers.find(t2 => true)?.repeatCount);
+              const reallyDone = enabledTimers.every(t => next[t.id] && next[t.id].fireCount >= t.repeatCount);
+              if (reallyDone) {
+                setTimeout(() => {
+                  clearInterval(tickRef.current);
+                  setRunning(false);
+                  setPaused(false);
+                  releaseWakeLock();
+                }, 0);
+              }
+            }
+
+            return next;
+          });
+        }, 100);
+      }, [timers]);
+
+      const pauseSession = useCallback(() => {
+        if (!sessionRef.current) return;
+        sessionRef.current.isPaused = true;
+        sessionRef.current.pauseStart = Date.now();
+        setPaused(true);
+      }, []);
+
+      const resumeSession = useCallback(() => {
+        if (!sessionRef.current) return;
+        const pauseDuration = Date.now() - sessionRef.current.pauseStart;
+        sessionRef.current.pausedElapsed += pauseDuration;
+
+        setTimerStates(prev => {
+          const next = {};
+          for (const [id, state] of Object.entries(prev)) {
+            next[id] = {
+              ...state,
+              nextFireAt: state.nextFireAt ? state.nextFireAt + pauseDuration : null,
+            };
+          }
+          return next;
+        });
+
+        sessionRef.current.isPaused = false;
+        setPaused(false);
+        requestWakeLock();
+      }, []);
+
+      const resetSession = useCallback(() => {
+        clearInterval(tickRef.current);
+        sessionRef.current = null;
+        setRunning(false);
+        setPaused(false);
+        setTimerStates({});
+        setElapsed(0);
+        releaseWakeLock();
+      }, []);
+
+      const enabledCount = timers.filter(t => t.enabled).length;
+
+      let nextBellIn = null;
+      if (running && !paused) {
+        const upcoming = Object.values(timerStates)
+          .filter(s => s.secondsUntilNext != null && s.fireCount < Infinity)
+          .map(s => s.secondsUntilNext);
+        if (upcoming.length > 0) nextBellIn = Math.min(...upcoming);
+      }
+
+      return html`
+        <a href="../index.html" class="back-link">← Back to Apps</a>
+        <header>
+          <h1>Meditation Timer</h1>
+          <p class="subtitle">Multi-interval singing bowl timer</p>
+        </header>
+
+        ${timers.map((timer, i) => html`
+          <${TimerCard}
+            key=${timer.id}
+            timer=${timer}
+            index=${i}
+            onUpdate=${updateTimer}
+            onDelete=${deleteTimer}
+            running=${running}
+            timerState=${timerStates[timer.id]}
+          />
+        `)}
+
+        ${!running && html`
+          <button class="btn-add" onClick=${addTimer}>+ Add Timer</button>
+        `}
+
+        <div class="controls">
+          <div class="status-text">
+            ${running
+              ? html`
+                  <span>Elapsed: <span class="highlight">${formatTime(elapsed)}</span></span>
+                  ${nextBellIn != null && html`
+                    ${' | Next bell: '}<span class="highlight">${formatTime(nextBellIn)}</span>
+                  `}
+                `
+              : html`<span>${enabledCount} timer${enabledCount !== 1 ? 's' : ''} configured</span>`
+            }
+          </div>
+          <div class="controls-row">
+            ${!running && html`
+              <button class="btn-control primary" onClick=${startSession}
+                disabled=${enabledCount === 0}>
+                Start
+              </button>
+            `}
+            ${running && !paused && html`
+              <button class="btn-control" onClick=${pauseSession}>Pause</button>
+            `}
+            ${running && paused && html`
+              <button class="btn-control primary" onClick=${resumeSession}>Resume</button>
+            `}
+            ${running && html`
+              <button class="btn-control" onClick=${resetSession}>Reset</button>
+            `}
+          </div>
+        </div>
+      `;
+    }
+
+    render(html`<${App} />`, document.getElementById('app'));
+  </script>
+</body>
+</html>
