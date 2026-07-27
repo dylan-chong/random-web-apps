@@ -58,8 +58,8 @@
       background: var(--bg-surface);
       border: 1px solid var(--bg-highlight);
       border-radius: 12px;
-      padding: 1.2rem;
-      margin-bottom: 1rem;
+      padding: 0.8rem;
+      margin-bottom: 0.6rem;
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
       position: relative;
     }
@@ -81,7 +81,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
     }
 
     .timer-label {
@@ -98,18 +98,18 @@
 
     .timer-fields {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 0.8rem;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 0.5rem;
     }
 
     .field-group {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
+      gap: 0.2rem;
     }
 
     .field-group label {
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       color: var(--fg-dim);
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -120,10 +120,10 @@
       background: var(--bg);
       border: 1px solid var(--bg-highlight);
       border-radius: 6px;
-      padding: 0.5rem 0.6rem;
+      padding: 0.3rem 0.4rem;
       color: var(--fg);
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       width: 100%;
       box-sizing: border-box;
     }
@@ -311,7 +311,7 @@
 
     @media (max-width: 480px) {
       .timer-fields {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
       }
     }
   </style>
@@ -332,12 +332,12 @@
 
     // Degrees 1, 3, 5, 7, 4, 2 of the just intonation major scale
     const BOWL_SOUNDS = {
-      'bowl-1':   { name: 'Root (1st)',      fundamental: BASE_FREQ * JUST_RATIOS[1],  partials: [1, 2, 3, 4],  decay: 5 },
-      'bowl-3':   { name: 'Third (3rd)',     fundamental: BASE_FREQ * JUST_RATIOS[3],  partials: [1, 2, 3, 4],  decay: 4.5 },
-      'bowl-5':   { name: 'Fifth (5th)',     fundamental: BASE_FREQ * JUST_RATIOS[5],  partials: [1, 2, 3, 4],  decay: 4 },
-      'bowl-7':   { name: 'Seventh (7th)',   fundamental: BASE_FREQ * JUST_RATIOS[7],  partials: [1, 2, 3, 4],  decay: 3.5 },
-      'bowl-4':   { name: 'Fourth (4th)',    fundamental: BASE_FREQ * JUST_RATIOS[4],  partials: [1, 2, 3, 4],  decay: 5 },
-      'bowl-2':   { name: 'Second (2nd)',    fundamental: BASE_FREQ * JUST_RATIOS[2],  partials: [1, 2, 3, 4],  decay: 5.5 },
+      'bowl-1':   { name: 'Root',      fundamental: BASE_FREQ * JUST_RATIOS[1],  partials: [1, 2, 3, 4],  decay: 5 },
+      'bowl-3':   { name: 'Third',     fundamental: BASE_FREQ * JUST_RATIOS[3],  partials: [1, 2, 3, 4],  decay: 4.5 },
+      'bowl-5':   { name: 'Fifth',     fundamental: BASE_FREQ * JUST_RATIOS[5],  partials: [1, 2, 3, 4],  decay: 4 },
+      'bowl-7':   { name: 'Seventh',   fundamental: BASE_FREQ * JUST_RATIOS[7],  partials: [1, 2, 3, 4],  decay: 3.5 },
+      'bowl-4':   { name: 'Fourth',    fundamental: BASE_FREQ * JUST_RATIOS[4],  partials: [1, 2, 3, 4],  decay: 5 },
+      'bowl-2':   { name: 'Second',    fundamental: BASE_FREQ * JUST_RATIOS[2],  partials: [1, 2, 3, 4],  decay: 5.5 },
       'none':     { name: 'No Sound' },
     };
 
@@ -459,21 +459,21 @@
               <label>Interval (seconds)</label>
               <input type="number" min="1" step="1"
                 value=${timer.intervalSeconds}
-                onInput=${(e) => update('intervalSeconds', Math.max(1, parseInt(e.target.value) || 1))}
+                onInput=${(e) => update('intervalSeconds', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 disabled=${running} />
             </div>
             <div class="field-group">
               <label>Repeat count</label>
               <input type="number" min="1" step="1"
                 value=${timer.repeatCount}
-                onInput=${(e) => update('repeatCount', Math.max(1, parseInt(e.target.value) || 1))}
+                onInput=${(e) => update('repeatCount', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 disabled=${running} />
             </div>
             <div class="field-group">
               <label>Plays per trigger</label>
               <input type="number" min="1" max="10" step="1"
                 value=${timer.playsPerTrigger}
-                onInput=${(e) => update('playsPerTrigger', Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                onInput=${(e) => update('playsPerTrigger', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 disabled=${running} />
             </div>
             <div class="field-group">
@@ -548,7 +548,15 @@
       }, []);
 
       const startSession = useCallback(() => {
-        const enabledTimers = timers.filter(t => t.enabled);
+        const validated = timers.map(t => ({
+          ...t,
+          intervalSeconds: Math.max(1, parseInt(t.intervalSeconds) || 1),
+          repeatCount: Math.max(1, parseInt(t.repeatCount) || 1),
+          playsPerTrigger: Math.max(1, Math.min(10, parseInt(t.playsPerTrigger) || 1)),
+        }));
+        setTimers(validated);
+
+        const enabledTimers = validated.filter(t => t.enabled);
         if (enabledTimers.length === 0) return;
 
         const now = Date.now();
