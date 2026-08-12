@@ -581,8 +581,8 @@
           </div>
 
           ${!running && html`
-            <button class="btn-test" onClick=${() => onTest(timer)} disabled=${testing}>
-              ${testing ? 'Testing…' : 'Test'}
+            <button class="btn-test" onClick=${() => onTest(timer)} disabled=${testing !== null}>
+              ${testing === timer.id ? 'Testing…' : 'Test'}
             </button>
           `}
 
@@ -992,7 +992,7 @@
             running=${running}
             timerState=${timerStates[timer.id]}
             onTest=${testTimer}
-            testing=${testingTimerId !== null}
+            testing=${testingTimerId}
           />
         `)}
 
