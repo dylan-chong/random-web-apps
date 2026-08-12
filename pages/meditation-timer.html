@@ -469,14 +469,6 @@
       }
     }
 
-    function applyVolumeDucking(volumeStateRef) {
-      if (!youtubePlayer || !youtubePlayer.setVolume) return;
-      try {
-        const currentVolume = volumeStateRef.currentVolume;
-        const playerVolume = Math.round(currentVolume * 100);
-        youtubePlayer.setVolume(playerVolume);
-      } catch (e) {}
-    }
 
     function createDefaultTimer() {
       return {
@@ -722,10 +714,7 @@
         const enabledTimers = validated.filter(t => t.enabled);
         if (enabledTimers.length === 0) return;
 
-        // YouTube player already initialized; just ensure it plays
-        if (youtubePlayer && youtubePlayer.playVideo) {
-          youtubePlayer.playVideo();
-        }
+        // YouTube iframe player displays video; user controls volume via YouTube native controls
         // Volume ducking is applied via enforcePlayerMuted() + volume level tracking in volumeStateRef
 
         const now = Date.now();
@@ -762,7 +751,6 @@
           setElapsed(totalElapsed);
 
           updateVolume(currentTime);
-          applyVolumeDucking(volumeStateRef.current);
 
           setTimerStates(prev => {
             const next = { ...prev };
@@ -828,9 +816,6 @@
 
       const pauseSession = useCallback(() => {
         if (!sessionRef.current) return;
-        pauseYouTubePlayer();
-        volumeStateRef.current.volumeBoostEndTime = null;
-        volumeStateRef.current.transitionStartTime = null;
         sessionRef.current.isPaused = true;
         sessionRef.current.pauseStart = Date.now();
         setPaused(true);
@@ -838,10 +823,6 @@
 
       const resumeSession = useCallback(() => {
         if (!sessionRef.current) return;
-        playYouTubePlayer();
-        volumeStateRef.current.currentVolume = backgroundVolume;
-        volumeStateRef.current.targetVolume = backgroundVolume;
-        volumeStateRef.current.transitionStartTime = null;
 
         const pauseDuration = Date.now() - sessionRef.current.pauseStart;
         sessionRef.current.pausedElapsed += pauseDuration;
@@ -865,19 +846,12 @@
       const resetSession = useCallback(() => {
         clearInterval(tickRef.current);
         sessionRef.current = null;
-        destroyYouTubePlayer();
-        volumeStateRef.current = {
-          currentVolume: backgroundVolume,
-          targetVolume: backgroundVolume,
-          volumeBoostEndTime: null,
-          transitionStartTime: null,
-        };
         setRunning(false);
         setPaused(false);
         setTimerStates({});
         setElapsed(0);
         releaseWakeLock();
-      }, [backgroundVolume]);
+      }, []);
 
 
       const enabledCount = timers.filter(t => t.enabled).length;
