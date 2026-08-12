@@ -351,7 +351,7 @@
     const STORAGE_KEY = 'meditation_settings';
 
     // Constants
-    const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=MK3lB-uY0gE';
     const DEFAULT_BACKGROUND_VOLUME = 0.3;     // 30%
     const DEFAULT_BOOST_VOLUME = 1.0;          // 100% (per-timer)
     const DEFAULT_BOOST_DURATION_SECONDS = 4.0; // (per-timer)
@@ -701,6 +701,10 @@
         setPaused(false);
         requestWakeLock();
 
+        if (playerRef.current && playerRef.current.playVideo) {
+          playerRef.current.playVideo();
+        }
+
         tickRef.current = setInterval(() => {
           const session = sessionRef.current;
           if (!session || session.isPaused) return;
@@ -780,6 +784,9 @@
         sessionRef.current.isPaused = true;
         sessionRef.current.pauseStart = Date.now();
         setPaused(true);
+        if (playerRef.current && playerRef.current.pauseVideo) {
+          playerRef.current.pauseVideo();
+        }
       }, []);
 
       const resumeSession = useCallback(() => {
@@ -802,11 +809,17 @@
         sessionRef.current.isPaused = false;
         setPaused(false);
         requestWakeLock();
+        if (playerRef.current && playerRef.current.playVideo) {
+          playerRef.current.playVideo();
+        }
       }, [backgroundVolume]);
 
       const resetSession = useCallback(() => {
         clearInterval(tickRef.current);
         sessionRef.current = null;
+        if (playerRef.current && playerRef.current.pauseVideo) {
+          playerRef.current.pauseVideo();
+        }
         setRunning(false);
         setPaused(false);
         setTimerStates({});
