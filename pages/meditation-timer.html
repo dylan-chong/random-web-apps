@@ -828,7 +828,7 @@
             <div class="timer-fields" style="margin-top: 0.8rem; grid-template-columns: 1fr;">
               <div class="field-group">
                 <label>Background Volume (${Math.round(backgroundVolume * 100)}%)</label>
-                <input type="range" min="1" max="80" step="1"
+                <input type="range" min="0" max="80" step="1"
                   value=${Math.round(backgroundVolume * 100)}
                   onInput=${(e) => setBackgroundVolume(parseInt(e.target.value) / 100)}
                   disabled=${running} />
