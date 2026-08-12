@@ -134,6 +134,23 @@
       box-sizing: border-box;
     }
 
+    .duration-input {
+      display: flex;
+      align-items: center;
+      gap: 0.2rem;
+    }
+
+    .duration-input input {
+      min-width: 0;
+      text-align: center;
+    }
+
+    .duration-input__separator {
+      color: var(--fg-dim);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.9rem;
+    }
+
     .field-group input:focus,
     .field-group select:focus {
       outline: none;
@@ -388,15 +405,22 @@
     }
 
 
-    function createDefaultTimer() {
+    function createDefaultTimer(intervalSeconds = 300, repeatCount = 3) {
       return {
         id: crypto.randomUUID(),
-        intervalSeconds: 300,
-        repeatCount: 3,
+        intervalSeconds,
+        repeatCount,
         boostVolume: DEFAULT_BOOST_VOLUME,
         boostDuration: DEFAULT_BOOST_DURATION_SECONDS,
         enabled: true,
       };
+    }
+
+    function createDefaultTimers() {
+      return [
+        createDefaultTimer(60, 60),
+        createDefaultTimer(300, 10),
+      ];
     }
 
     function loadSettings() {
@@ -420,7 +444,7 @@
         }
       } catch (e) {}
       return {
-        timers: [createDefaultTimer()],
+        timers: createDefaultTimers(),
         youtubeURL: DEFAULT_YOUTUBE_URL,
         backgroundVolume: DEFAULT_BACKGROUND_VOLUME,
       };
@@ -488,11 +512,27 @@
 
           <div class="timer-fields">
             <div class="field-group">
-              <label>Interval (s)</label>
-              <input type="number" min="1" step="1"
-                value=${timer.intervalSeconds}
-                onInput=${(e) => update('intervalSeconds', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
-                disabled=${running} />
+              <label>Interval (min:sec)</label>
+              <div class="duration-input">
+                <input type="number" min="0" step="1" class="duration-input__minutes"
+                  value=${Math.floor((timer.intervalSeconds || 0) / 60)}
+                  onInput=${(e) => {
+                    const minutes = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                    const seconds = (timer.intervalSeconds || 0) % 60;
+                    update('intervalSeconds', minutes * 60 + seconds);
+                  }}
+                  disabled=${running} />
+                <span class="duration-input__separator">:</span>
+                <input type="number" min="0" max="59" step="1" class="duration-input__seconds"
+                  value=${String((timer.intervalSeconds || 0) % 60).padStart(2, '0')}
+                  onInput=${(e) => {
+                    const rawSeconds = e.target.value === '' ? 0 : parseInt(e.target.value) || 0;
+                    const seconds = Math.min(59, Math.max(0, rawSeconds));
+                    const minutes = Math.floor((timer.intervalSeconds || 0) / 60);
+                    update('intervalSeconds', minutes * 60 + seconds);
+                  }}
+                  disabled=${running} />
+              </div>
             </div>
             <div class="field-group">
               <label>Repeat</label>
@@ -830,12 +870,17 @@
 
       const enabledCount = timers.filter(t => t.enabled).length;
 
-      let nextBellIn = null;
-      if (running && !paused) {
-        const upcoming = Object.values(timerStates)
-          .filter(s => s.secondsUntilNext != null && s.fireCount < Infinity)
-          .map(s => s.secondsUntilNext);
-        if (upcoming.length > 0) nextBellIn = Math.min(...upcoming);
+      let meditationTimeLeft = null;
+      if (running) {
+        const remaining = timers
+          .filter(t => t.enabled)
+          .map(t => {
+            const state = timerStates[t.id];
+            if (!state || state.secondsUntilNext == null) return 0;
+            const remainingFiresAfterNext = t.repeatCount - state.fireCount - 1;
+            return state.secondsUntilNext + remainingFiresAfterNext * t.intervalSeconds;
+          });
+        if (remaining.length > 0) meditationTimeLeft = Math.max(...remaining);
       }
 
       return html`
@@ -893,8 +938,8 @@
             ${running
               ? html`
                   <span>Elapsed: <span class="highlight">${formatTime(elapsed)}</span></span>
-                  ${nextBellIn != null && html`
-                    ${' | Next bell: '}<span class="highlight">${formatTime(nextBellIn)}</span>
+                  ${meditationTimeLeft != null && html`
+                    ${' | Time left: '}<span class="highlight">${formatTime(meditationTimeLeft)}</span>
                   `}
                 `
               : html`<span>${enabledCount} timer${enabledCount !== 1 ? 's' : ''} configured</span>`
