@@ -428,6 +428,8 @@
               rel: 0,
               showinfo: 0,
               fs: 1,
+              allowfullscreen: true,
+              iv_load_policy: 3,
             },
             events: {
               onReady: (e) => {
@@ -435,6 +437,9 @@
               },
               onStateChange: (e) => {
                 e.target.setVolume(0);
+              },
+              onError: (e) => {
+                console.error('YouTube player error:', e.data);
               },
             }
           });
@@ -646,13 +651,6 @@
         saveSettings(timers, youtubeURL, backgroundVolume);
       }, [timers, youtubeURL, backgroundVolume]);
 
-      useEffect(() => {
-        const videoId = getYouTubeVideoId(youtubeURL);
-        if (videoId && !running) {
-          destroyYouTubePlayer();
-          initYouTubePlayer(videoId);
-        }
-      }, [youtubeURL, running]);
 
       useEffect(() => {
         const onVisChange = () => {
@@ -926,7 +924,18 @@
           </div>
         `}
 
-        <div class="youtube-player-container" id="youtube-player"></div>
+        ${youtubeURL && getYouTubeVideoId(youtubeURL) && html`
+          <div class="youtube-player-container">
+            <iframe
+              width="100%"
+              height="315"
+              src=${'https://www.youtube.com/embed/' + getYouTubeVideoId(youtubeURL) + '?autoplay=0&controls=1&modestbranding=1&rel=0&iv_load_policy=3'}
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen>
+            </iframe>
+          </div>
+        `}
 
         ${timers.map((timer, i) => html`
           <${TimerCard}
