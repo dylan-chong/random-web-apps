@@ -632,6 +632,13 @@
       }, [timers, youtubeURL, backgroundVolume]);
 
       useEffect(() => {
+        const videoId = getYouTubeVideoId(youtubeURL);
+        if (videoId && !running) {
+          initYouTubePlayer(videoId);
+        }
+      }, [youtubeURL, running]);
+
+      useEffect(() => {
         const onVisChange = () => {
           if (document.visibilityState === 'visible' && running && !paused) {
             requestWakeLock();
@@ -705,13 +712,10 @@
         const enabledTimers = validated.filter(t => t.enabled);
         if (enabledTimers.length === 0) return;
 
-        // Setup YouTube player
-        const videoId = getYouTubeVideoId(youtubeURL);
-        if (videoId) {
-          initYouTubePlayer(videoId);
+        // YouTube player already initialized; just ensure it plays
+        if (youtubePlayer && youtubePlayer.playVideo) {
+          youtubePlayer.playVideo();
         }
-
-        // YouTube player handles both video and audio playback
         // Volume ducking is applied via enforcePlayerMuted() + volume level tracking in volumeStateRef
 
         const now = Date.now();
@@ -906,9 +910,7 @@
           </div>
         `}
 
-        ${running && html`
-          <div class="youtube-player-container" id="youtube-player"></div>
-        `}
+        <div class="youtube-player-container" id="youtube-player"></div>
 
         ${timers.map((timer, i) => html`
           <${TimerCard}
