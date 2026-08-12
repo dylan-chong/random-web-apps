@@ -669,7 +669,6 @@
 
       const updateVolume = useCallback((now) => {
         const volState = volumeStateRef.current;
-        if (!audioRef.current) return;
 
         const shouldBeBoosted = now < (volState.volumeBoostEndTime || 0);
         volState.targetVolume = shouldBeBoosted ? boostVolume : backgroundVolume;
