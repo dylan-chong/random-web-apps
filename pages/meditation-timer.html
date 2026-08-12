@@ -405,13 +405,13 @@
     }
 
 
-    function createDefaultTimer(intervalSeconds = 300, repeatCount = 3) {
+    function createDefaultTimer(intervalSeconds = 300, repeatCount = 3, boostDuration = DEFAULT_BOOST_DURATION_SECONDS) {
       return {
         id: crypto.randomUUID(),
         intervalSeconds,
         repeatCount,
         boostVolume: DEFAULT_BOOST_VOLUME,
-        boostDuration: DEFAULT_BOOST_DURATION_SECONDS,
+        boostDuration,
         enabled: true,
       };
     }
@@ -419,7 +419,7 @@
     function createDefaultTimers() {
       return [
         createDefaultTimer(60, 60),
-        createDefaultTimer(300, 10),
+        createDefaultTimer(300, 10, 10.0),
       ];
     }
 
