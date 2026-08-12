@@ -541,6 +541,42 @@
         setTimers(ts => [...ts, createDefaultTimer()]);
       }, []);
 
+      const triggerVolumeBoost = useCallback(() => {
+        const now = Date.now();
+        const volState = volumeStateRef.current;
+
+        if (now >= (volState.volumeBoostEndTime || 0)) {
+          volState.volumeBoostEndTime = now + (boostDuration * 1000);
+        }
+        volState.targetVolume = boostVolume;
+        volState.transitionStartTime = now;
+      }, [boostDuration, boostVolume]);
+
+      const updateVolume = useCallback((now) => {
+        const volState = volumeStateRef.current;
+        if (!audioRef.current) return;
+
+        const shouldBeBoosted = now < (volState.volumeBoostEndTime || 0);
+        volState.targetVolume = shouldBeBoosted ? boostVolume : backgroundVolume;
+
+        if (volState.transitionStartTime === null) {
+          volState.transitionStartTime = now;
+        }
+
+        const elapsedInTransition = now - volState.transitionStartTime;
+
+        if (elapsedInTransition >= VOLUME_TRANSITION_DURATION_MS) {
+          volState.currentVolume = volState.targetVolume;
+          volState.transitionStartTime = null;
+        } else {
+          const progress = elapsedInTransition / VOLUME_TRANSITION_DURATION_MS;
+          const previousVolume = volState.currentVolume;
+          volState.currentVolume = previousVolume + (volState.targetVolume - previousVolume) * progress;
+        }
+
+        audioRef.current.volume = volState.currentVolume;
+      }, [backgroundVolume, boostVolume]);
+
       const startSession = useCallback(() => {
         const validated = timers.map(t => ({
           ...t,
@@ -722,42 +758,6 @@
         setElapsed(0);
         releaseWakeLock();
       }, [backgroundVolume]);
-
-      const triggerVolumeBoost = useCallback(() => {
-        const now = Date.now();
-        const volState = volumeStateRef.current;
-
-        if (now >= (volState.volumeBoostEndTime || 0)) {
-          volState.volumeBoostEndTime = now + (boostDuration * 1000);
-        }
-        volState.targetVolume = boostVolume;
-        volState.transitionStartTime = now;
-      }, [boostDuration, boostVolume]);
-
-      const updateVolume = useCallback((now) => {
-        const volState = volumeStateRef.current;
-        if (!audioRef.current) return;
-
-        const shouldBeBoosted = now < (volState.volumeBoostEndTime || 0);
-        volState.targetVolume = shouldBeBoosted ? boostVolume : backgroundVolume;
-
-        if (volState.transitionStartTime === null) {
-          volState.transitionStartTime = now;
-        }
-
-        const elapsedInTransition = now - volState.transitionStartTime;
-
-        if (elapsedInTransition >= VOLUME_TRANSITION_DURATION_MS) {
-          volState.currentVolume = volState.targetVolume;
-          volState.transitionStartTime = null;
-        } else {
-          const progress = elapsedInTransition / VOLUME_TRANSITION_DURATION_MS;
-          const previousVolume = volState.currentVolume;
-          volState.currentVolume = previousVolume + (volState.targetVolume - previousVolume) * progress;
-        }
-
-        audioRef.current.volume = volState.currentVolume;
-      }, [backgroundVolume, boostVolume]);
 
       const previewBoost = useCallback(() => {
         triggerVolumeBoost();
