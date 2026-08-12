@@ -102,6 +102,12 @@
       gap: 0.5rem;
     }
 
+    .field-group input[type="range"] {
+      cursor: pointer;
+      height: 4px;
+      border-radius: 2px;
+    }
+
     .field-group {
       display: flex;
       flex-direction: column;
@@ -330,8 +336,8 @@
     // Constants for audio ducking
     const DEFAULT_YOUTUBE_URL = 'https://www.youtube.com/watch?v=MK3lB-uY0gE';
     const DEFAULT_BACKGROUND_VOLUME = 0.3;     // 30%
-    const DEFAULT_BOOST_VOLUME = 1.0;          // 100%
-    const DEFAULT_BOOST_DURATION_SECONDS = 2.0;
+    const DEFAULT_BOOST_VOLUME = 1.0;          // 100% (per-timer)
+    const DEFAULT_BOOST_DURATION_SECONDS = 2.0; // (per-timer)
     const MIN_BOOST_DURATION_SECONDS = 2.0;
     const MAX_BOOST_DURATION_SECONDS = 10.0;
     const VOLUME_TRANSITION_DURATION_MS = 1000; // 1 second smooth crossfade
@@ -368,6 +374,8 @@
         id: crypto.randomUUID(),
         intervalSeconds: 300,
         repeatCount: 3,
+        boostVolume: DEFAULT_BOOST_VOLUME,
+        boostDuration: DEFAULT_BOOST_DURATION_SECONDS,
         enabled: true,
       };
     }
@@ -378,12 +386,16 @@
         if (raw) {
           const data = JSON.parse(raw);
           if (data.timers && data.timers.length > 0) {
+            // Fill in missing per-timer fields for old timers
+            const timers = data.timers.map(t => ({
+              ...t,
+              boostVolume: t.boostVolume != null ? t.boostVolume : DEFAULT_BOOST_VOLUME,
+              boostDuration: t.boostDuration != null ? t.boostDuration : DEFAULT_BOOST_DURATION_SECONDS,
+            }));
             return {
-              timers: data.timers,
+              timers,
               youtubeURL: data.youtubeURL || DEFAULT_YOUTUBE_URL,
               backgroundVolume: data.backgroundVolume != null ? data.backgroundVolume : DEFAULT_BACKGROUND_VOLUME,
-              boostVolume: data.boostVolume != null ? data.boostVolume : DEFAULT_BOOST_VOLUME,
-              boostDuration: data.boostDuration != null ? data.boostDuration : DEFAULT_BOOST_DURATION_SECONDS,
             };
           }
         }
@@ -392,18 +404,14 @@
         timers: [createDefaultTimer()],
         youtubeURL: DEFAULT_YOUTUBE_URL,
         backgroundVolume: DEFAULT_BACKGROUND_VOLUME,
-        boostVolume: DEFAULT_BOOST_VOLUME,
-        boostDuration: DEFAULT_BOOST_DURATION_SECONDS,
       };
     }
 
-    function saveSettings(timers, youtubeURL, backgroundVolume, boostVolume, boostDuration) {
+    function saveSettings(timers, youtubeURL, backgroundVolume) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
         timers,
         youtubeURL,
         backgroundVolume,
-        boostVolume,
-        boostDuration,
       }));
     }
 
@@ -461,17 +469,31 @@
 
           <div class="timer-fields">
             <div class="field-group">
-              <label>Interval (seconds)</label>
+              <label>Interval (s)</label>
               <input type="number" min="1" step="1"
                 value=${timer.intervalSeconds}
                 onInput=${(e) => update('intervalSeconds', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 disabled=${running} />
             </div>
             <div class="field-group">
-              <label>Repeat count</label>
+              <label>Repeat</label>
               <input type="number" min="1" step="1"
                 value=${timer.repeatCount}
                 onInput=${(e) => update('repeatCount', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
+                disabled=${running} />
+            </div>
+            <div class="field-group">
+              <label>Boost (${Math.round(timer.boostVolume * 100)}%)</label>
+              <input type="range" min="30" max="100" step="1"
+                value=${Math.round(timer.boostVolume * 100)}
+                onInput=${(e) => update('boostVolume', parseInt(e.target.value) / 100)}
+                disabled=${running} />
+            </div>
+            <div class="field-group">
+              <label>Duration (${timer.boostDuration.toFixed(1)}s)</label>
+              <input type="range" min=${MIN_BOOST_DURATION_SECONDS} max=${MAX_BOOST_DURATION_SECONDS} step="0.5"
+                value=${timer.boostDuration}
+                onInput=${(e) => update('boostDuration', parseFloat(e.target.value))}
                 disabled=${running} />
             </div>
           </div>
@@ -502,8 +524,6 @@
       const [elapsed, setElapsed] = useState(0);
       const [youtubeURL, setYoutubeURL] = useState(settings.youtubeURL);
       const [backgroundVolume, setBackgroundVolume] = useState(settings.backgroundVolume);
-      const [boostVolume, setBoostVolume] = useState(settings.boostVolume);
-      const [boostDuration, setBoostDuration] = useState(settings.boostDuration);
 
       const sessionRef = useRef(null);
       const tickRef = useRef(null);
@@ -516,8 +536,8 @@
       });
 
       useEffect(() => {
-        saveSettings(timers, youtubeURL, backgroundVolume, boostVolume, boostDuration);
-      }, [timers, youtubeURL, backgroundVolume, boostVolume, boostDuration]);
+        saveSettings(timers, youtubeURL, backgroundVolume);
+      }, [timers, youtubeURL, backgroundVolume]);
 
       useEffect(() => {
         const onVisChange = () => {
@@ -541,16 +561,24 @@
         setTimers(ts => [...ts, createDefaultTimer()]);
       }, []);
 
-      const triggerVolumeBoost = useCallback(() => {
+      const triggerVolumeBoost = useCallback((boostVol, boostDur) => {
         const now = Date.now();
         const volState = volumeStateRef.current;
 
         if (now >= (volState.volumeBoostEndTime || 0)) {
-          volState.volumeBoostEndTime = now + (boostDuration * 1000);
+          volState.volumeBoostEndTime = now + (boostDur * 1000);
+        } else {
+          // Timer already boosting; update end time if this timer's duration is longer
+          const currentEndOffset = volState.volumeBoostEndTime - now;
+          const newEndOffset = boostDur * 1000;
+          if (newEndOffset > currentEndOffset) {
+            volState.volumeBoostEndTime = now + newEndOffset;
+          }
         }
-        volState.targetVolume = boostVolume;
+        // Use max of current target and new boost volume
+        volState.targetVolume = Math.max(volState.targetVolume, boostVol);
         volState.transitionStartTime = now;
-      }, [boostDuration, boostVolume]);
+      }, []);
 
       const updateVolume = useCallback((now) => {
         const volState = volumeStateRef.current;
@@ -656,6 +684,9 @@
           setTimerStates(prev => {
             const next = { ...prev };
             let allDone = true;
+            let maxBoostVolume = 0;
+            let maxBoostDuration = 0;
+            let anyFiring = false;
 
             for (const t of enabledTimers) {
               const state = next[t.id];
@@ -663,7 +694,9 @@
               allDone = false;
 
               if (currentTime >= state.nextFireAt) {
-                triggerVolumeBoost();
+                anyFiring = true;
+                maxBoostVolume = Math.max(maxBoostVolume, t.boostVolume);
+                maxBoostDuration = Math.max(maxBoostDuration, t.boostDuration);
                 const newFireCount = state.fireCount + 1;
                 next[t.id] = {
                   ...state,
@@ -686,6 +719,10 @@
                   secondsUntilNext: Math.max(0, (state.nextFireAt - currentTime) / 1000),
                 };
               }
+            }
+
+            if (anyFiring) {
+              triggerVolumeBoost(maxBoostVolume, maxBoostDuration);
             }
 
             if (allDone) {
@@ -759,9 +796,6 @@
         releaseWakeLock();
       }, [backgroundVolume]);
 
-      const previewBoost = useCallback(() => {
-        triggerVolumeBoost();
-      }, [triggerVolumeBoost]);
 
       const enabledCount = timers.filter(t => t.enabled).length;
 
@@ -791,35 +825,13 @@
                 disabled=${running} />
             </div>
 
-            <div class="timer-fields" style="margin-top: 0.8rem; grid-template-columns: 1fr 1fr;">
+            <div class="timer-fields" style="margin-top: 0.8rem; grid-template-columns: 1fr;">
               <div class="field-group">
                 <label>Background Volume (${Math.round(backgroundVolume * 100)}%)</label>
                 <input type="range" min="30" max="100" step="1"
                   value=${Math.round(backgroundVolume * 100)}
                   onInput=${(e) => setBackgroundVolume(parseInt(e.target.value) / 100)}
                   disabled=${running} />
-              </div>
-              <div class="field-group">
-                <label>Boost Volume (${Math.round(boostVolume * 100)}%)</label>
-                <input type="range" min="30" max="100" step="1"
-                  value=${Math.round(boostVolume * 100)}
-                  onInput=${(e) => setBoostVolume(parseInt(e.target.value) / 100)}
-                  disabled=${running} />
-              </div>
-              <div class="field-group">
-                <label>Boost Duration (${boostDuration.toFixed(1)}s)</label>
-                <input type="range" min=${MIN_BOOST_DURATION_SECONDS} max=${MAX_BOOST_DURATION_SECONDS} step="0.5"
-                  value=${boostDuration}
-                  onInput=${(e) => setBoostDuration(parseFloat(e.target.value))}
-                  disabled=${running} />
-              </div>
-              <div class="field-group">
-                <label>&nbsp;</label>
-                <button class="btn-icon" onMouseDown=${previewBoost}
-                  title="Hold to preview volume boost"
-                  style="width: 100%;">
-                  🔊 Preview
-                </button>
               </div>
             </div>
           </div>
