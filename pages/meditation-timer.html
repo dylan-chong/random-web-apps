@@ -765,7 +765,7 @@
                   setTestingTimerId(null);
                 }, 1000);
               });
-            }, 1000);
+            }, timer.boostDuration * 1000);
           });
         }, 1000);
       }, [backgroundVolume, testingTimerId]);
