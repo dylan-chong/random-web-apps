@@ -448,14 +448,13 @@
       }
     }
 
-    function enforcePlayerMuted() {
-      if (youtubePlayer && youtubePlayer.getVolume && youtubePlayer.setVolume) {
-        try {
-          if (youtubePlayer.getVolume() > 0) {
-            youtubePlayer.setVolume(0);
-          }
-        } catch (e) {}
-      }
+    function applyVolumeDucking(volumeStateRef) {
+      if (!youtubePlayer || !youtubePlayer.setVolume) return;
+      try {
+        const currentVolume = volumeStateRef.currentVolume;
+        const playerVolume = Math.round(currentVolume * 100);
+        youtubePlayer.setVolume(playerVolume);
+      } catch (e) {}
     }
 
     function createDefaultTimer() {
@@ -616,7 +615,6 @@
 
       const sessionRef = useRef(null);
       const tickRef = useRef(null);
-      const audioRef = useRef(null);
       const volumeStateRef = useRef({
         currentVolume: settings.backgroundVolume,
         targetVolume: settings.backgroundVolume,
@@ -690,8 +688,6 @@
           const previousVolume = volState.currentVolume;
           volState.currentVolume = previousVolume + (volState.targetVolume - previousVolume) * progress;
         }
-
-        audioRef.current.volume = volState.currentVolume;
       }, [backgroundVolume]);
 
       const startSession = useCallback(() => {
@@ -711,34 +707,8 @@
           initYouTubePlayer(videoId);
         }
 
-        // Setup audio
-        if (!audioRef.current) {
-          const audio = new Audio();
-          audio.crossOrigin = 'anonymous';
-          audioRef.current = audio;
-        }
-
-        const audio = audioRef.current;
-        if (videoId) {
-          // Use noembed or similar to get direct audio stream
-          // For now, attempt to use the YouTube embed with autoplay
-          // Note: Direct playback requires CORS-enabled source
-          fetch(`https://noembed.com/embed?url=${encodeURIComponent(youtubeURL)}`)
-            .then(r => r.json())
-            .then(data => {
-              // Use yt-dlp API if available, otherwise use invidious fallback
-              const invidousUrl = `https://invidious.io/api/v1/videos/${videoId}?fields=videoDetails`;
-              return fetch(invidousUrl);
-            })
-            .catch(() => {
-              console.warn('Could not fetch YouTube audio, using direct URL');
-              audio.src = youtubeURL;
-            });
-        }
-
-        audio.loop = true;
-        audio.volume = backgroundVolume;
-        audio.play().catch(e => console.error('Audio playback failed:', e));
+        // YouTube player handles both video and audio playback
+        // Volume ducking is applied via enforcePlayerMuted() + volume level tracking in volumeStateRef
 
         const now = Date.now();
         const states = {};
@@ -774,7 +744,7 @@
           setElapsed(totalElapsed);
 
           updateVolume(currentTime);
-          enforcePlayerMuted();
+          applyVolumeDucking(volumeStateRef.current);
 
           setTimerStates(prev => {
             const next = { ...prev };
@@ -840,7 +810,6 @@
 
       const pauseSession = useCallback(() => {
         if (!sessionRef.current) return;
-        if (audioRef.current) audioRef.current.pause();
         pauseYouTubePlayer();
         volumeStateRef.current.volumeBoostEndTime = null;
         volumeStateRef.current.transitionStartTime = null;
@@ -851,7 +820,6 @@
 
       const resumeSession = useCallback(() => {
         if (!sessionRef.current) return;
-        if (audioRef.current) audioRef.current.play().catch(e => console.error('Audio resume failed:', e));
         playYouTubePlayer();
         volumeStateRef.current.currentVolume = backgroundVolume;
         volumeStateRef.current.targetVolume = backgroundVolume;
@@ -879,7 +847,6 @@
       const resetSession = useCallback(() => {
         clearInterval(tickRef.current);
         sessionRef.current = null;
-        if (audioRef.current) audioRef.current.pause();
         destroyYouTubePlayer();
         volumeStateRef.current = {
           currentVolume: backgroundVolume,
