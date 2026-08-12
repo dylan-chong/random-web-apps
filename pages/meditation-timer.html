@@ -192,6 +192,29 @@
       color: var(--negative);
     }
 
+    .btn-test {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 0.4rem;
+      background: var(--bg-highlight);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 6px;
+      color: var(--fg-dim);
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-test:hover:not(:disabled) {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-test:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
     .btn-add {
       width: 100%;
       padding: 0.8rem;
@@ -482,7 +505,7 @@
       }
     }
 
-    function TimerCard({ timer, index, onUpdate, onDelete, running, timerState }) {
+    function TimerCard({ timer, index, onUpdate, onDelete, running, timerState, onTest, testing }) {
       const update = (field, value) => onUpdate(timer.id, { ...timer, [field]: value });
       const isCompleted = timerState && timerState.fireCount >= timer.repeatCount;
       const isFiring = timerState && timerState.firing;
@@ -557,6 +580,12 @@
             </div>
           </div>
 
+          ${!running && html`
+            <button class="btn-test" onClick=${() => onTest(timer)} disabled=${testing}>
+              ${testing ? 'Testing…' : 'Test'}
+            </button>
+          `}
+
           ${running && timer.enabled && html`
             <div class="timer-progress">
               ${isCompleted
@@ -583,6 +612,7 @@
       const [elapsed, setElapsed] = useState(0);
       const [youtubeURL, setYoutubeURL] = useState(settings.youtubeURL);
       const [backgroundVolume, setBackgroundVolume] = useState(settings.backgroundVolume);
+      const [testingTimerId, setTestingTimerId] = useState(null);
 
       const sessionRef = useRef(null);
       const tickRef = useRef(null);
@@ -704,6 +734,41 @@
           playerRef.current.setVolume(Math.round(volState.currentVolume * 100));
         }
       }, [backgroundVolume]);
+
+      const testTimer = useCallback((timer) => {
+        if (testingTimerId || !playerRef.current || !playerRef.current.playVideo) return;
+
+        setTestingTimerId(timer.id);
+
+        const player = playerRef.current;
+        const rampVolume = (fromVol, toVol, durationMs, onDone) => {
+          const rampStart = Date.now();
+          const rampTick = setInterval(() => {
+            const progress = Math.min(1, (Date.now() - rampStart) / durationMs);
+            player.setVolume(Math.round((fromVol + (toVol - fromVol) * progress) * 100));
+            if (progress >= 1) {
+              clearInterval(rampTick);
+              onDone && onDone();
+            }
+          }, TICK_INTERVAL_MS);
+        };
+
+        player.setVolume(Math.round(backgroundVolume * 100));
+        player.playVideo();
+
+        setTimeout(() => {
+          rampVolume(backgroundVolume, timer.boostVolume, VOLUME_TRANSITION_DURATION_MS, () => {
+            setTimeout(() => {
+              rampVolume(timer.boostVolume, backgroundVolume, VOLUME_TRANSITION_DURATION_MS, () => {
+                setTimeout(() => {
+                  if (player.pauseVideo) player.pauseVideo();
+                  setTestingTimerId(null);
+                }, 1000);
+              });
+            }, 1000);
+          });
+        }, 1000);
+      }, [backgroundVolume, testingTimerId]);
 
       const startSession = useCallback(() => {
         const validated = timers.map(t => ({
@@ -926,6 +991,8 @@
             onDelete=${deleteTimer}
             running=${running}
             timerState=${timerStates[timer.id]}
+            onTest=${testTimer}
+            testing=${testingTimerId !== null}
           />
         `)}
 
