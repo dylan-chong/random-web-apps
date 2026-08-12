@@ -603,7 +603,7 @@
         }
 
         audioRef.current.volume = volState.currentVolume;
-      }, [backgroundVolume, boostVolume]);
+      }, [backgroundVolume]);
 
       const startSession = useCallback(() => {
         const validated = timers.map(t => ({
