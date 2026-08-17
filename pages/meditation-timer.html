@@ -735,6 +735,21 @@
         }
       }, [backgroundVolume]);
 
+      const testBackgroundVolume = useCallback(() => {
+        if (testingTimerId || !playerRef.current || !playerRef.current.playVideo) return;
+
+        setTestingTimerId('background');
+
+        const player = playerRef.current;
+        player.setVolume(Math.round(backgroundVolume * 100));
+        player.playVideo();
+
+        setTimeout(() => {
+          if (player.pauseVideo) player.pauseVideo();
+          setTestingTimerId(null);
+        }, 2000);
+      }, [backgroundVolume, testingTimerId]);
+
       const testTimer = useCallback((timer) => {
         if (testingTimerId || !playerRef.current || !playerRef.current.playVideo) return;
 
@@ -973,6 +988,9 @@
                   value=${Math.round(backgroundVolume * 100)}
                   onInput=${(e) => setBackgroundVolume(parseInt(e.target.value) / 100)}
                   disabled=${running} />
+                <button class="btn-test" onClick=${testBackgroundVolume} disabled=${testingTimerId !== null}>
+                  ${testingTimerId === 'background' ? 'Testing…' : 'Test'}
+                </button>
               </div>
             </div>
           </div>
