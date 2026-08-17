@@ -215,6 +215,17 @@
       cursor: not-allowed;
     }
 
+    .ios-note {
+      background: var(--bg-surface);
+      border: 1px solid var(--bg-highlight);
+      border-radius: 12px;
+      padding: 0.8rem;
+      margin-bottom: 1rem;
+      color: var(--fg-dim);
+      font-size: 0.8rem;
+      line-height: 1.4;
+    }
+
     .btn-add {
       width: 100%;
       padding: 0.8rem;
@@ -505,7 +516,7 @@
       }
     }
 
-    function TimerCard({ timer, index, onUpdate, onDelete, running, timerState, onTest, testing }) {
+    function TimerCard({ timer, index, onUpdate, onDelete, running, timerState, onTest, testing, isIOS }) {
       const update = (field, value) => onUpdate(timer.id, { ...timer, [field]: value });
       const isCompleted = timerState && timerState.fireCount >= timer.repeatCount;
       const isFiring = timerState && timerState.firing;
@@ -564,13 +575,15 @@
                 onInput=${(e) => update('repeatCount', e.target.value === '' ? '' : parseInt(e.target.value) || '')}
                 disabled=${running} />
             </div>
-            <div class="field-group">
-              <label>Boost (${Math.round(timer.boostVolume * 100)}%)</label>
-              <input type="range" min="30" max="100" step="1"
-                value=${Math.round(timer.boostVolume * 100)}
-                onInput=${(e) => update('boostVolume', parseInt(e.target.value) / 100)}
-                disabled=${running} />
-            </div>
+            ${!isIOS && html`
+              <div class="field-group">
+                <label>Boost (${Math.round(timer.boostVolume * 100)}%)</label>
+                <input type="range" min="30" max="100" step="1"
+                  value=${Math.round(timer.boostVolume * 100)}
+                  onInput=${(e) => update('boostVolume', parseInt(e.target.value) / 100)}
+                  disabled=${running} />
+              </div>
+            `}
             <div class="field-group">
               <label>Duration (${timer.boostDuration.toFixed(1)}s)</label>
               <input type="range" min=${MIN_BOOST_DURATION_SECONDS} max=${MAX_BOOST_DURATION_SECONDS} step="0.5"
@@ -580,7 +593,7 @@
             </div>
           </div>
 
-          ${!running && html`
+          ${!running && !isIOS && html`
             <button class="btn-test" onClick=${() => onTest(timer)} disabled=${testing !== null}>
               ${testing === timer.id ? 'Testing…' : 'Test'}
             </button>
@@ -604,6 +617,8 @@
     }
 
     function App() {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
       const settings = loadSettings();
       const [timers, setTimers] = useState(() => settings.timers);
       const [running, setRunning] = useState(false);
@@ -651,7 +666,10 @@
               autoplay: 0,
             },
             events: {
-              onReady: (e) => e.target.setVolume(Math.round(backgroundVolume * 100)),
+              onReady: (e) => {
+                if (isIOS) e.target.mute();
+                else e.target.setVolume(Math.round(backgroundVolume * 100));
+              },
             },
           });
         });
@@ -713,6 +731,15 @@
         const shouldBeBoosted = now < (volState.volumeBoostEndTime || 0);
         if (!shouldBeBoosted) {
           volState.targetVolume = backgroundVolume;
+        }
+
+        if (isIOS) {
+          // Volume ramping is a no-op on iOS; mute at rest, unmute during boost instead.
+          if (playerRef.current && playerRef.current.mute && playerRef.current.unMute) {
+            if (shouldBeBoosted) playerRef.current.unMute();
+            else playerRef.current.mute();
+          }
+          return;
         }
 
         if (volState.transitionStartTime === null) {
@@ -970,6 +997,15 @@
           <p class="subtitle">Background audio with smart volume ducking</p>
         </header>
 
+        ${isIOS && html`
+          <div class="ios-note">
+            iOS blocks web pages from adjusting video volume, so this app can only
+            mute and unmute the background audio instead of smoothly ducking it —
+            volume controls and test buttons are hidden here. For the full smooth
+            volume experience, try a desktop browser or Android.
+          </div>
+        `}
+
         ${!running && html`
           <div class="timer-card">
             <div class="field-group">
@@ -981,18 +1017,20 @@
                 disabled=${running} />
             </div>
 
-            <div class="timer-fields" style="margin-top: 0.8rem; grid-template-columns: 1fr;">
-              <div class="field-group">
-                <label>Background Volume (${Math.round(backgroundVolume * 100)}%)</label>
-                <input type="range" min="0" max="80" step="1"
-                  value=${Math.round(backgroundVolume * 100)}
-                  onInput=${(e) => setBackgroundVolume(parseInt(e.target.value) / 100)}
-                  disabled=${running} />
-                <button class="btn-test" onClick=${testBackgroundVolume} disabled=${testingTimerId !== null}>
-                  ${testingTimerId === 'background' ? 'Testing…' : 'Test'}
-                </button>
+            ${!isIOS && html`
+              <div class="timer-fields" style="margin-top: 0.8rem; grid-template-columns: 1fr;">
+                <div class="field-group">
+                  <label>Background Volume (${Math.round(backgroundVolume * 100)}%)</label>
+                  <input type="range" min="0" max="80" step="1"
+                    value=${Math.round(backgroundVolume * 100)}
+                    onInput=${(e) => setBackgroundVolume(parseInt(e.target.value) / 100)}
+                    disabled=${running} />
+                  <button class="btn-test" onClick=${testBackgroundVolume} disabled=${testingTimerId !== null}>
+                    ${testingTimerId === 'background' ? 'Testing…' : 'Test'}
+                  </button>
+                </div>
               </div>
-            </div>
+            `}
           </div>
         `}
 
@@ -1011,6 +1049,7 @@
             timerState=${timerStates[timer.id]}
             onTest=${testTimer}
             testing=${testingTimerId}
+            isIOS=${isIOS}
           />
         `)}
 
