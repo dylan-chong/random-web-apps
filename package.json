@@ -4,9 +4,10 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "prepare": "git config core.hooksPath .hooks"
+    "prepare": "husky"
   },
   "devDependencies": {
+    "husky": "9.1.7",
     "vitest": "^2.0.0"
   }
 }

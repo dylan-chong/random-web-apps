@@ -26,6 +26,7 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 yarn.lock
+.husky/_/
 
 # Build artifacts
 dist/
