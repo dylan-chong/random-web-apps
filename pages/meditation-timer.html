@@ -763,11 +763,11 @@
                 setTimeout(() => {
                   if (player.pauseVideo) player.pauseVideo();
                   setTestingTimerId(null);
-                }, 1000);
+                }, 2000);
               });
             }, timer.boostDuration * 1000);
           });
-        }, 1000);
+        }, 2000);
       }, [backgroundVolume, testingTimerId]);
 
       const startSession = useCallback(() => {
